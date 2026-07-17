@@ -1,6 +1,6 @@
-package com.programmers.kdt.user.point.repository;
+package com.programmers.kdt.order.payment.repository;
 
-import com.programmers.kdt.user.point.entity.PointLog;
+import com.programmers.kdt.order.payment.entity.PointLog;
 import org.springframework.data.jpa.repository.JpaRepository;
 import java.util.List;
 

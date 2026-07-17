@@ -1,4 +1,4 @@
-package com.programmers.kdt.user.point.entity;
+package com.programmers.kdt.order.payment.entity;
 
 import jakarta.persistence.*;
 import lombok.Getter;
