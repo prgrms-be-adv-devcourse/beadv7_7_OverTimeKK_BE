@@ -14,10 +14,7 @@ public class Ticket {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long ticketId;
 
-    @Column(nullable = false)
     private Long performanceInfoId;
-
-    @Column(nullable = false)
     private Long sessionNum;
 
     @Column(nullable = false)

@@ -1,27 +1,35 @@
 package com.programmers.kdt.venue.entity;
 
+import com.programmers.kdt.common.entity.BaseTimeEntity;
 import jakarta.persistence.*;
+import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Getter
 @NoArgsConstructor
-public class Venue {
+public class Venue extends BaseTimeEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long venueId;
 
-    @Column(nullable = false)
+    @NotNull
     private String venueName;
 
-    @Column(nullable = false)
+    @NotNull
     private String roadAddress;
 
-    @Column(nullable = false)
+    @NotNull
     private String detailAddress;
 
-    // ERD: 유의사항 NULL
+    @NotNull
     private String notice;
+
+    @OneToMany(fetch = FetchType.LAZY)
+    private List<Hall> halls = new ArrayList<>();
 }

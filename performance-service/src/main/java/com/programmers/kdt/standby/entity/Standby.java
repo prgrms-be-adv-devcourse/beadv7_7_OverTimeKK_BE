@@ -1,39 +1,40 @@
 package com.programmers.kdt.standby.entity;
 
+import com.programmers.kdt.common.entity.BaseTimeEntity;
+import com.programmers.kdt.performance.entity.PerformanceSession;
 import jakarta.persistence.*;
+import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-import org.hibernate.annotations.ColumnDefault;
 import java.time.LocalDateTime;
 
+/**
+ * 대기 (ERD: Standby)
+ */
 @Entity
 @Getter
 @NoArgsConstructor
-public class Standby {
+public class Standby extends BaseTimeEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long standbyId;
 
-    @Column(nullable = false)
+    @NotNull
     private Long userId;
 
-    @Column(nullable = false)
-    private Long performanceInfoId;
+    @ManyToOne
+    private PerformanceSession performanceSession;
 
-    @Column(nullable = false)
-    private Long sessionNum;
-
+    @NotNull
     private String zone1;
+
     private String zone2;
+
     private String zone3;
 
-
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
-    @ColumnDefault("'WAITING'")
-    private StandbyStatus standbyStatus = StandbyStatus.WAITING;
+    private StandbyStatus standbyStatus;
 
-    @Column(nullable = false)
     private LocalDateTime reservedAt;
 }
