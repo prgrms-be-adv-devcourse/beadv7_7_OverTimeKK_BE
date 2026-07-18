@@ -1,4 +1,4 @@
-package com.programmers.kdt.ticket.entity;
+package com.programmers.kdt.standby.entity;
 
 import jakarta.persistence.*;
 import lombok.Getter;
