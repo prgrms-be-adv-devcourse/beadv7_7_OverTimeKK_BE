@@ -3,12 +3,9 @@ package com.programmers.kdt.standby.entity;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.ColumnDefault;
 import java.time.LocalDateTime;
 
-/**
- * 대기 (ERD: Standby)
- * TODO: zone1/zone2/zone3 구조 팀 회의에서 재확인 필요
- */
 @Entity
 @Getter
 @NoArgsConstructor
@@ -18,18 +15,25 @@ public class Standby {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long standbyId;
 
-    // user-service의 User를 ID로만 참조
+    @Column(nullable = false)
     private Long userId;
 
+    @Column(nullable = false)
     private Long performanceInfoId;
+
+    @Column(nullable = false)
     private Long sessionNum;
 
     private String zone1;
     private String zone2;
     private String zone3;
 
-    @Enumerated(EnumType.STRING)
-    private StandbyStatus standbyStatus;
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    @ColumnDefault("'WAITING'")
+    private StandbyStatus standbyStatus = StandbyStatus.WAITING;
+
+    @Column(nullable = false)
     private LocalDateTime reservedAt;
 }
