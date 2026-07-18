@@ -3,8 +3,7 @@ package com.programmers.kdt.performance.entity;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-import java.time.LocalDate;
-import java.time.LocalTime;
+import java.time.LocalDateTime;
 
 @Entity
 @Getter
@@ -15,8 +14,13 @@ public class PerformanceSession {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long sessionNum;
 
+    @Column(nullable = false)
     private Long performanceInfoId;
+
+    @Column(nullable = false)
     private String actor;
-    private LocalDate performanceDate;
-    private LocalTime performanceStartTm;
+
+
+    @Column(nullable = false)
+    private LocalDateTime performanceStartAt;
 }

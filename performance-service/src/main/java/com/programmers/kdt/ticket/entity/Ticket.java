@@ -3,7 +3,7 @@ package com.programmers.kdt.ticket.entity;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-import java.time.LocalDateTime;
+import org.hibernate.annotations.ColumnDefault;
 
 @Entity
 @Getter
@@ -16,15 +16,22 @@ public class Ticket {
 
     private Long performanceInfoId;
     private Long sessionNum;
-    private Long stadiumId;
+
+    @Column(nullable = false)
     private String zone;
+
+    @Column(nullable = false)
     private String seatRow;
+
+    @Column(nullable = false)
     private String seatNum;
+
+    @Column(nullable = false)
     private Long price;
 
+    // ERD: 상태 Enum NOT NULL DEFAULT Available
     @Enumerated(EnumType.STRING)
-    private TicketStatus ticketStatus;
-
-    private Long heldByUserId;
-    private LocalDateTime holdExpireAt;
+    @Column(nullable = false)
+    @ColumnDefault("'AVAILABLE'")
+    private TicketStatus ticketStatus = TicketStatus.AVAILABLE;
 }
