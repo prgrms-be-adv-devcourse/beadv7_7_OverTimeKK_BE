@@ -18,7 +18,7 @@ public class PerformanceSeatPrice {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    private Long perfomanceInfoId;
+    private Long performanceInfoId;
     private Long hallId;
     private String zone;
     private Long price;
