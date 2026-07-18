@@ -13,8 +13,10 @@ public class Seat {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long seatId;
 
+    @Column(nullable = false)
     private Long hallId;
-    private Long venueId;
+
+    @Column(nullable = false)
     private String zone;
     private String seatRow;
     private String seatNum;

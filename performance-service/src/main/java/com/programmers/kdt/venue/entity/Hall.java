@@ -13,7 +13,12 @@ public class Hall {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long hallId;
 
+    @Column(nullable = false)
     private Long venueId;
+
+    @Column(nullable = false)
     private String hallName;
+
+    @Column(nullable = false)
     private Long seatTotalCount;
 }
