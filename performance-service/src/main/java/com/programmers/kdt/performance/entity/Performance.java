@@ -15,18 +15,28 @@ public class Performance {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long performanceInfoId;
 
+    @Column(nullable = false)
     private String title;
+
     private String description;
-    private Long runtime;
+
+    @Column(nullable = false)
+    private String runtime;
+
+    @Column(nullable = false)
     private LocalDate startDate;
+
+    @Column(nullable = false)
     private LocalDate endDate;
 
-    // 티켓 오픈 시각 — 정확한 시:분까지 필요해 LocalDateTime으로 지정 (ERD엔 LocalDate로만 표시됨, 팀 확인 필요)
+    // 티켓 오픈 시각 (ERD: 티켓오픈시간 LocalDateTime NULL)
     private LocalDateTime ticketOpenAt;
 
     // user-service의 판매자(User)를 ID로만 참조
+    @Column(nullable = false)
     private Long sellerId;
 
+
+    @Column(nullable = false)
     private Long hallId;
-    private Long venueId;
 }
