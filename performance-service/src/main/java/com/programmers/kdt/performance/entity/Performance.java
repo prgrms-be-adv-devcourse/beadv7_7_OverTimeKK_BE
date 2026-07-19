@@ -1,6 +1,12 @@
 package com.programmers.kdt.performance.entity;
 
-import jakarta.persistence.*;
+import com.programmers.kdt.common.entity.BaseTimeEntity;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.validation.constraints.NotNull;
+import jakarta.persistence.Column;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import java.time.LocalDate;
@@ -9,23 +15,27 @@ import java.time.LocalDateTime;
 @Entity
 @Getter
 @NoArgsConstructor
-public class Performance {
+public class Performance extends BaseTimeEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long performanceInfoId;
 
+    @NotNull
     @Column(nullable = false)
     private String title;
 
     private String description;
 
+    @NotNull
     @Column(nullable = false)
     private String runtime;
 
+    @NotNull
     @Column(nullable = false)
     private LocalDate startDate;
 
+    @NotNull
     @Column(nullable = false)
     private LocalDate endDate;
 
@@ -33,10 +43,11 @@ public class Performance {
     private LocalDateTime ticketOpenAt;
 
     // user-service의 판매자(User)를 ID로만 참조
+    @NotNull
     @Column(nullable = false)
     private Long sellerId;
 
-
+    @NotNull
     @Column(nullable = false)
     private Long hallId;
 }

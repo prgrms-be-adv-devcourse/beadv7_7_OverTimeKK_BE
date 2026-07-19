@@ -1,6 +1,14 @@
 package com.programmers.kdt.performance.entity;
 
-import jakarta.persistence.*;
+import com.programmers.kdt.common.entity.BaseTimeEntity;
+import jakarta.persistence.Column;
+import jakarta.persistence.EmbeddedId;
+import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.MapsId;
+import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import java.time.LocalDateTime;
@@ -8,19 +16,23 @@ import java.time.LocalDateTime;
 @Entity
 @Getter
 @NoArgsConstructor
-public class PerformanceSession {
+public class PerformanceSession extends BaseTimeEntity {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long sessionNum;
+    @EmbeddedId
+    private PerformanceSessionId performanceSessionId;
 
-    @Column(nullable = false)
-    private Long performanceInfoId;
+    // 복합키의 performanceInfoId 부분을 이 FK가 채움(@MapsId)
+    @MapsId("performanceInfoId")
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "performance_info_id")
+    private Performance performance;
 
+    @NotNull
     @Column(nullable = false)
     private String actor;
 
-
+    @NotNull
     @Column(nullable = false)
     private LocalDateTime performanceStartAt;
 }
+
