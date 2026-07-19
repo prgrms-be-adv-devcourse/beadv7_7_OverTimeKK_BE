@@ -21,10 +21,10 @@ public class PerformanceSession extends BaseTimeEntity {
     @EmbeddedId
     private PerformanceSessionId performanceSessionId;
 
-    // 복합키의 performanceInfoId 부분을 이 FK가 채움(@MapsId)
-    @MapsId("performanceInfoId")
+    // 복합키의 performanceId 부분을 이 FK가 채움(@MapsId)
+    @MapsId("performanceId")
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "performance_info_id")
+    @JoinColumn(name = "performance_id")
     private Performance performance;
 
     @NotNull

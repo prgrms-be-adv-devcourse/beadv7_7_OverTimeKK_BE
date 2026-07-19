@@ -22,5 +22,5 @@ public class PerformanceSessionId implements Serializable {
 
     @NotNull
     @Column(nullable = false)
-    private Long performanceInfoId;
+    private Long performanceId;
 }

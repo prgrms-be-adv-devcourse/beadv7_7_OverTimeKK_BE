@@ -19,7 +19,7 @@ public class Performance extends BaseTimeEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long performanceInfoId;
+    private Long performanceId;
 
     @NotNull
     @Column(nullable = false)

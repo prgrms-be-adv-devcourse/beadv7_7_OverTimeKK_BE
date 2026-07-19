@@ -18,7 +18,7 @@ import lombok.NoArgsConstructor;
 @Entity
 @Table(uniqueConstraints = @UniqueConstraint(
         name = "uk_seat_price_performance_zone",
-        columnNames = {"performance_info_id", "zone"}))
+        columnNames = {"performance_id", "zone"}))
 @Getter
 @NoArgsConstructor
 public class PerformanceSeatPrice extends BaseTimeEntity {
@@ -28,7 +28,7 @@ public class PerformanceSeatPrice extends BaseTimeEntity {
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "performance_info_id", nullable = false)
+    @JoinColumn(name = "performance_id", nullable = false)
     private Performance performance;
 
     @NotNull

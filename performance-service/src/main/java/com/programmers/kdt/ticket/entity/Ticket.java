@@ -17,7 +17,7 @@ public class Ticket extends BaseTimeEntity {
     private Long ticketId;
 
     @NotNull
-    private Long performanceInfoId;
+    private Long performanceId;
 
     @NotNull
     private Long sessionNum;
