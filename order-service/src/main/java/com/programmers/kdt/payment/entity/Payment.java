@@ -88,7 +88,7 @@ public class Payment extends BaseTimeEntity {
 
         long remaining = amount - refundedAmount; // 남은 금액 = 결제금액 - 취소금액
         if (cancelAmount == null || cancelAmount <= 0 || cancelAmount > remaining) {
-            throw new IllegalStateException("부분 환불 금액이 유효하지 않습니다. 잔여 금액 : " + remaining + "요청 금액 :" + cancelAmount);
+            throw new IllegalArgumentException("부분 환불 금액이 유효하지 않습니다. 잔여 금액 : " + remaining + "요청 금액 :" + cancelAmount);
         }
 
         this.refundedAmount += cancelAmount;
