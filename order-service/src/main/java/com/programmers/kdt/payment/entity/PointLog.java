@@ -55,7 +55,7 @@ public class PointLog extends BaseTimeEntity {
     }
 
     // 환급 내역 생성 메서드
-    public static PointLog cancel(PointLog originPointLog, Long amount, String eventId, boolean isFullCancel) {
+    public static PointLog rollback(PointLog originPointLog, Long amount, String eventId, boolean isFullRollback) {
         if (originPointLog == null || originPointLog.getPointType() != PointType.USE) {
             throw new IllegalArgumentException("환급은 USE 로그만 가능합니다.");
         }
@@ -69,7 +69,7 @@ public class PointLog extends BaseTimeEntity {
 
         PointLog pointLog = new PointLog();
         pointLog.userId = originPointLog.getUserId();
-        pointLog.pointType = isFullCancel ? PointType.CANCELLED : PointType.PARTIAL_CANCELLED;
+        pointLog.pointType = isFullRollback ? PointType.CANCELLED : PointType.PARTIAL_CANCELLED;
         pointLog.amount = amount;
         pointLog.refLogId = originPointLog.getId();
         pointLog.eventId = eventId;
