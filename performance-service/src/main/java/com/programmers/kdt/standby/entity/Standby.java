@@ -3,7 +3,6 @@ package com.programmers.kdt.standby.entity;
 import com.programmers.kdt.common.entity.BaseTimeEntity;
 import com.programmers.kdt.performance.entity.PerformanceSession;
 import jakarta.persistence.*;
-import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import java.time.LocalDateTime;
@@ -20,13 +19,13 @@ public class Standby extends BaseTimeEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long standbyId;
 
-    @NotNull
+    @Column(nullable = false)
     private Long userId;
 
     @ManyToOne
     private PerformanceSession performanceSession;
 
-    @NotNull
+    @Column(nullable = false)
     private String zone1;
 
     private String zone2;

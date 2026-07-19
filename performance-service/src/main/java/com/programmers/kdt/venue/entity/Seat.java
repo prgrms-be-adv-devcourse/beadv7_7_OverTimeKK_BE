@@ -2,7 +2,6 @@ package com.programmers.kdt.venue.entity;
 
 import com.programmers.kdt.common.entity.BaseTimeEntity;
 import jakarta.persistence.*;
-import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
@@ -18,7 +17,7 @@ public class Seat extends BaseTimeEntity {
     @ManyToOne(fetch = FetchType.LAZY)
     private Hall hall;
 
-    @NotNull
+    @Column(nullable = false)
     private String zone;
 
     private String seatRow;

@@ -2,7 +2,6 @@ package com.programmers.kdt.venue.entity;
 
 import com.programmers.kdt.common.entity.BaseTimeEntity;
 import jakarta.persistence.*;
-import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
@@ -18,16 +17,16 @@ public class Venue extends BaseTimeEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long venueId;
 
-    @NotNull
+    @Column(nullable = false)
     private String venueName;
 
-    @NotNull
+    @Column(nullable = false)
     private String roadAddress;
 
-    @NotNull
+    @Column(nullable = false)
     private String detailAddress;
 
-    @NotNull
+    @Column(nullable = false)
     private String notice;
 
     @OneToMany(fetch = FetchType.LAZY)

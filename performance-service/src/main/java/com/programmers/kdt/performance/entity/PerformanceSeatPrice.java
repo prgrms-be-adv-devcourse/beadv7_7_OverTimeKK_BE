@@ -11,7 +11,6 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Column;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
-import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
@@ -31,15 +30,12 @@ public class PerformanceSeatPrice extends BaseTimeEntity {
     @JoinColumn(name = "performance_id", nullable = false)
     private Performance performance;
 
-    @NotNull
     @Column(nullable = false)
     private Long hallId;
 
-    @NotNull
     @Column(nullable = false)
     private String zone;
 
-    @NotNull
     @Column(nullable = false)
     private Long price;
 }

@@ -2,7 +2,6 @@ package com.programmers.kdt.ticket.entity;
 
 import com.programmers.kdt.common.entity.BaseTimeEntity;
 import jakarta.persistence.*;
-import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.ColumnDefault;
@@ -16,25 +15,21 @@ public class Ticket extends BaseTimeEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long ticketId;
 
-    @NotNull
+    @Column(nullable = false)
     private Long performanceId;
 
-    @NotNull
+    @Column(nullable = false)
     private Long sessionNum;
 
-    @NotNull
     @Column(nullable = false)
     private String zone;
 
-    @NotNull
     @Column(nullable = false)
     private String seatRow;
 
-    @NotNull
     @Column(nullable = false)
     private String seatNum;
 
-    @NotNull
     @Column(nullable = false)
     private Long price;
 

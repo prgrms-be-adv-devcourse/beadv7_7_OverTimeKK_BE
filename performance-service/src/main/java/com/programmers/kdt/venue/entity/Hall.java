@@ -2,7 +2,6 @@ package com.programmers.kdt.venue.entity;
 
 import com.programmers.kdt.common.entity.BaseTimeEntity;
 import jakarta.persistence.*;
-import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
@@ -21,10 +20,10 @@ public class Hall extends BaseTimeEntity {
     @ManyToOne(fetch = FetchType.LAZY)
     private Venue venue;
 
-    @NotNull
+    @Column(nullable = false)
     private String hallName;
 
-    @NotNull
+    @Column(nullable = false)
     private Long seatTotalCount;
 
     @OneToMany(mappedBy = "hall", fetch = FetchType.LAZY)

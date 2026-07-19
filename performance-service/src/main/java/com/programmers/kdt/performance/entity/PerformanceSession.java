@@ -8,7 +8,6 @@ import jakarta.persistence.FetchType;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.MapsId;
-import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import java.time.LocalDateTime;
@@ -27,11 +26,9 @@ public class PerformanceSession extends BaseTimeEntity {
     @JoinColumn(name = "performance_id")
     private Performance performance;
 
-    @NotNull
     @Column(nullable = false)
     private String actor;
 
-    @NotNull
     @Column(nullable = false)
     private LocalDateTime performanceStartAt;
 }
