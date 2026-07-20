@@ -7,6 +7,8 @@ import com.programmers.kdt.order.repository.OrderRepository;
 import com.programmers.kdt.payment.client.*;
 import com.programmers.kdt.payment.dto.*;
 import com.programmers.kdt.payment.entity.Payment;
+import com.programmers.kdt.payment.entity.PaymentStatus;
+import com.programmers.kdt.payment.exception.PaymentErrorCode;
 import com.programmers.kdt.payment.repository.PaymentRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -31,14 +33,24 @@ public class PaymentService {
 
         // orderId 중복 검증
         if (paymentRepository.existsByOrderId(request.orderId())) {
-            throw new BusinessException(CommonErrorCode.BAD_REQUEST);
+            throw new BusinessException(PaymentErrorCode.PAYMENT_ALREADY_EXISTS); // 추후에 409 CONFLICT로 응답 수정
+        }
+
+        // 주문 금액이 같은지 판별
+        if (!order.getTotalAmount().equals(request.amount())) {
+            throw new BusinessException(PaymentErrorCode.INVALID_PAYMENT_AMOUNT);
         }
 
         // 결제 생성
         Payment payment = Payment.create(order.getOrderId(), order.getUserId(), request.amount());
 
         // 나중에 PG사 요청은 트랜잭션에서 빼는 것을 고려
-        PgReadyResult readyResult = pgClient.ready(new PgReadyCommand(request.orderId(), request.amount()));
+        PgReadyResult readyResult;
+        try {
+            readyResult = pgClient.ready(new PgReadyCommand(request.orderId(), request.amount()));
+        } catch (Exception e) {
+            throw new BusinessException(PaymentErrorCode.PG_REQUEST_FAILED);
+        }
 
         // PG사 키 할당
         payment.assignPaymentKey(readyResult.transactionKey());
@@ -51,11 +63,16 @@ public class PaymentService {
     @Transactional
     public ConfirmPaymentResponse confirm(Long paymentId, ConfirmPaymentRequest request) {
         Payment payment = paymentRepository.findById(paymentId)
-                .orElseThrow(() -> new BusinessException(CommonErrorCode.NOT_FOUND));
+                .orElseThrow(() -> new BusinessException(PaymentErrorCode.PAYMENT_NOT_FOUND));
 
         // 요청한 결제와 다른 결제일 경우
         if (!payment.getPaymentKey().equals(request.transactionKey())) {
-            throw new BusinessException(CommonErrorCode.BAD_REQUEST);
+            throw new BusinessException(PaymentErrorCode.PAYMENT_KEY_MISMATCH);
+        }
+
+        // 상태 검증
+        if (payment.getPaymentStatus() != PaymentStatus.READY) {
+            throw new BusinessException(PaymentErrorCode.INVALID_PAYMENT_STATUS);
         }
 
         PgApproveResult approveResult = pgClient.approve(
@@ -75,13 +92,13 @@ public class PaymentService {
     @Transactional
     public FailPaymentResponse fail(Long paymentId, FailPaymentRequest request) {
         Payment payment = paymentRepository.findById(paymentId)
-                .orElseThrow(() -> new BusinessException(CommonErrorCode.NOT_FOUND));
+                .orElseThrow(() -> new BusinessException(PaymentErrorCode.PAYMENT_NOT_FOUND));
+
+        payment.fail();
 
         if (payment.getPaymentKey() != null) {
             pgClient.cancel(new PgCancelCommand(payment.getPaymentKey(), payment.getAmount(), request.reason()));
         }
-
-        payment.fail();
 
         return FailPaymentResponse.from(payment);
     }
