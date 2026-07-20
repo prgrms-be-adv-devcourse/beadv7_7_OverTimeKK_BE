@@ -29,6 +29,9 @@ public class Payment extends BaseTimeEntity {
     @Column(name = "refunded_amount", nullable = false)
     private Long refundedAmount;
 
+    @Column(name = "payment_key")
+    private String paymentKey;
+
     //결제 생성 메서드
     public static Payment create(Long orderId, Long amount) {
 
@@ -56,6 +59,14 @@ public class Payment extends BaseTimeEntity {
             throw new IllegalStateException("READY 상태에서만 결제 승인 가능합니다. 현재 상태 :" + this.paymentStatus);
         }
         this.paymentStatus = PaymentStatus.PAID;
+    }
+
+    //PG사 키 등록
+    public void assignPaymentKey(String paymentKey) {
+        if (paymentKey == null || paymentKey.isBlank()) {
+            throw new IllegalArgumentException("paymentKey가 없습니다.");
+        }
+        this.paymentKey = paymentKey;
     }
 
     // 결제 실패 메서드 READY -> FAILED
