@@ -19,6 +19,9 @@ public class Payment extends BaseTimeEntity {
     @Column(nullable = false)
     private Long orderId;
 
+    @Column(nullable = false)
+    private Long userId;
+
     @Column(name = "amount", nullable = false)
     private Long amount;
 
@@ -33,7 +36,7 @@ public class Payment extends BaseTimeEntity {
     private String paymentKey; // PG 참조값
 
     //결제 생성 메서드
-    public static Payment create(Long orderId, Long amount) {
+    public static Payment create(Long orderId, Long userId, Long amount) {
 
         if (orderId == null) {
             throw new IllegalArgumentException("주문이 존재하지 않습니다.");
@@ -44,6 +47,7 @@ public class Payment extends BaseTimeEntity {
         }
         Payment payment = new Payment();
         payment.orderId = orderId;
+        payment.userId = userId;
         payment.amount = amount;
         payment.paymentStatus = PaymentStatus.READY; //상태는 READY로 생성
         payment.refundedAmount = 0L; //환불금액은 0
