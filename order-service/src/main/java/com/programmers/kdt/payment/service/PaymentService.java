@@ -29,11 +29,17 @@ public class PaymentService {
         Order order = orderRepository.findById(request.orderId())
                 .orElseThrow(() -> new BusinessException(CommonErrorCode.NOT_FOUND));
 
+        // orderId 중복 검증
+        if (paymentRepository.existsByOrderId(request.orderId())) {
+            throw new BusinessException(CommonErrorCode.BAD_REQUEST);
+        }
+
         // 결제 생성
         Payment payment = Payment.create(order.getOrderId(), order.getUserId(), request.amount());
 
         // 나중에 PG사 요청은 트랜잭션에서 빼는 것을 고려
         PgReadyResult readyResult = pgClient.ready(new PgReadyCommand(request.orderId(), request.amount()));
+
         // PG사 키 할당
         payment.assignPaymentKey(readyResult.transactionKey());
         paymentRepository.save(payment);
