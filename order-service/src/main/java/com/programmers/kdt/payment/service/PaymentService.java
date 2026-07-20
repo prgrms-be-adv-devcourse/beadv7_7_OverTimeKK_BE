@@ -63,8 +63,7 @@ public class PaymentService {
     // 결제 확인
     @Transactional
     public ConfirmPaymentResponse confirm(Long paymentId, ConfirmPaymentRequest request) {
-        Payment payment = paymentRepository.findById(paymentId)
-                .orElseThrow(() -> new BusinessException(PaymentErrorCode.PAYMENT_NOT_FOUND));
+        Payment payment = getPayment(paymentId);
 
         // 요청한 결제와 다른 결제일 경우
         if (!payment.getPaymentKey().equals(request.transactionKey())) {
@@ -92,8 +91,7 @@ public class PaymentService {
     // 결제 실패 요청
     @Transactional
     public FailPaymentResponse fail(Long paymentId, FailPaymentRequest request) {
-        Payment payment = paymentRepository.findById(paymentId)
-                .orElseThrow(() -> new BusinessException(PaymentErrorCode.PAYMENT_NOT_FOUND));
+        Payment payment = getPayment(paymentId);
 
         payment.fail();
 
@@ -114,8 +112,7 @@ public class PaymentService {
     // 전액 환불
     @Transactional
     public CancelPaymentResponse cancel(Long paymentId, CancelPaymentRequest request) {
-        Payment payment = paymentRepository.findById(paymentId)
-                .orElseThrow(() -> new BusinessException(PaymentErrorCode.PAYMENT_NOT_FOUND));
+        Payment payment = getPayment(paymentId);
 
         // 환불금 계산
         Long refundAmount = payment.getAmount() - payment.getRefundedAmount();
@@ -139,8 +136,7 @@ public class PaymentService {
     // 부분 환불
     @Transactional
     public PartialCancelPaymentResponse partialCancel(Long paymentId, PartialCancelPaymentRequest request) {
-        Payment payment = paymentRepository.findById(paymentId)
-                .orElseThrow(() -> new BusinessException(PaymentErrorCode.PAYMENT_NOT_FOUND));
+        Payment payment = getPayment(paymentId);
 
         try {
             payment.partialCancel(request.amount());
@@ -168,5 +164,10 @@ public class PaymentService {
 
         return refundRepository.findByPaymentId(paymentId, pageable)
                 .map(GetPaymentRefundHistoryResponse::from);
+    }
+
+    private Payment getPayment(Long paymentId) {
+        return paymentRepository.findById(paymentId)
+                .orElseThrow(() -> new BusinessException(PaymentErrorCode.PAYMENT_NOT_FOUND));
     }
 }

@@ -1,5 +1,6 @@
 package com.programmers.kdt.payment.entity;
 
+import com.programmers.kdt.common.exception.BusinessException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -34,16 +35,16 @@ class PaymentTest {
         @DisplayName("orderId가 null이면 예외가 발생한다.")
         void createPaymentNullOrderId() {
             assertThatThrownBy(() -> Payment.create(null, 1L ,10000L))
-                    .isInstanceOf(IllegalArgumentException.class);
+                    .isInstanceOf(BusinessException.class);
         }
 
         @Test
         @DisplayName("amount가 0이하이면 예외가 발생한다.")
         void createPaymentZeroAmount() {
             assertThatThrownBy(() -> Payment.create(1L, 1L, 0L))
-                    .isInstanceOf(IllegalArgumentException.class);
+                    .isInstanceOf(BusinessException.class);
             assertThatThrownBy(() -> Payment.create(1L, 1L, -10000L))
-                    .isInstanceOf(IllegalArgumentException.class);
+                    .isInstanceOf(BusinessException.class);
         }
 
     }
@@ -88,7 +89,7 @@ class PaymentTest {
 
             //when & then
             assertThatThrownBy(payment::approve)
-                    .isInstanceOf(IllegalStateException.class);
+                    .isInstanceOf(BusinessException.class);
         }
     }
 
@@ -126,7 +127,7 @@ class PaymentTest {
 
             //when & then
             assertThatThrownBy(payment::fail)
-                    .isInstanceOf(IllegalStateException.class);
+                    .isInstanceOf(BusinessException.class);
         }
     }
 
@@ -185,7 +186,7 @@ class PaymentTest {
         void cancelFromReady() {
             Payment payment = Payment.create(1L, 1L, 10000L);
             assertThatThrownBy(payment::cancel)
-                    .isInstanceOf(IllegalStateException.class);
+                    .isInstanceOf(BusinessException.class);
         }
     }
 
@@ -247,11 +248,11 @@ class PaymentTest {
             payment.approve();
 
             assertThatThrownBy(() -> payment.partialCancel(null))
-                    .isInstanceOf(IllegalArgumentException.class);
+                    .isInstanceOf(BusinessException.class);
             assertThatThrownBy(() -> payment.partialCancel(0L))
-                    .isInstanceOf(IllegalArgumentException.class);
+                    .isInstanceOf(BusinessException.class);
             assertThatThrownBy(() -> payment.partialCancel(-10000L))
-                    .isInstanceOf(IllegalArgumentException.class);
+                    .isInstanceOf(BusinessException.class);
         }
 
         @Test
@@ -264,7 +265,7 @@ class PaymentTest {
 
             //when & then
             assertThatThrownBy(() -> payment.partialCancel(5000L))
-                    .isInstanceOf(IllegalArgumentException.class);
+                    .isInstanceOf(BusinessException.class);
 
         }
 
@@ -273,7 +274,7 @@ class PaymentTest {
         void readyFromPartialCancelled() {
             Payment payment = Payment.create(1L, 1L, 10000L);
             assertThatThrownBy(() -> payment.partialCancel(5000L))
-                    .isInstanceOf(IllegalStateException.class);
+                    .isInstanceOf(BusinessException.class);
         }
     }
 }
