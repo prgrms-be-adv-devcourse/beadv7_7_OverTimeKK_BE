@@ -1,6 +1,8 @@
 package com.programmers.kdt.payment.controller;
 
 import com.programmers.kdt.common.response.ApiResponse;
+import com.programmers.kdt.payment.dto.ConfirmPaymentRequest;
+import com.programmers.kdt.payment.dto.ConfirmPaymentResponse;
 import com.programmers.kdt.payment.dto.CreatePaymentRequest;
 import com.programmers.kdt.payment.dto.CreatePaymentResponse;
 import com.programmers.kdt.payment.service.PaymentService;
@@ -23,8 +25,18 @@ public class PaymentController {
         return ApiResponse.success(response);
     }
 
+    @PostMapping("/{paymentId}/confirm")
+    public ApiResponse<ConfirmPaymentResponse> confirm(
+            @PathVariable Long paymentId,
+            @RequestBody ConfirmPaymentRequest request
+    ) {
+        ConfirmPaymentResponse response = paymentService.confirm(paymentId, request);
+        return ApiResponse.success(response);
+    }
+
     @PostMapping("/{paymentId}/cancel")
     public void cancel(@PathVariable Long paymentId) {
+
         paymentService.cancelPayment(paymentId);
     }
 }

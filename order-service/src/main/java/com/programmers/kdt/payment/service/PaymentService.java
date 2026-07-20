@@ -2,14 +2,10 @@ package com.programmers.kdt.payment.service;
 
 import com.programmers.kdt.common.exception.BusinessException;
 import com.programmers.kdt.common.exception.CommonErrorCode;
-import com.programmers.kdt.common.exception.ErrorCode;
-import com.programmers.kdt.order.entity.Order;
 import com.programmers.kdt.order.repository.OrderRepository;
-import com.programmers.kdt.payment.client.PgApproveCommand;
-import com.programmers.kdt.payment.client.PgClient;
-import com.programmers.kdt.payment.client.PgReadyCommand;
-import com.programmers.kdt.payment.client.PgReadyResult;
+import com.programmers.kdt.payment.client.*;
 import com.programmers.kdt.payment.dto.ConfirmPaymentRequest;
+import com.programmers.kdt.payment.dto.ConfirmPaymentResponse;
 import com.programmers.kdt.payment.dto.CreatePaymentRequest;
 import com.programmers.kdt.payment.dto.CreatePaymentResponse;
 import com.programmers.kdt.payment.entity.Payment;
@@ -26,6 +22,7 @@ public class PaymentService {
     private final OrderRepository orderRepository;
     private final PgClient pgClient;
 
+    // 결제 생성
     @Transactional
     public CreatePaymentResponse pay(CreatePaymentRequest request) {
         orderRepository.findById(request.orderId())
@@ -48,7 +45,29 @@ public class PaymentService {
         );
     }
 
+    // 결제 확인
+    @Transactional
+    public ConfirmPaymentResponse confirm(Long paymentId, ConfirmPaymentRequest request) {
+        Payment payment = paymentRepository.findById(paymentId)
+                .orElseThrow(() -> new BusinessException(CommonErrorCode.NOT_FOUND));
 
+        // 요청한 결제와 다른 결제일 경우
+        if (!payment.getPaymentKey().equals(request.transactionKey())) {
+            throw new BusinessException(CommonErrorCode.BAD_REQUEST);
+        }
+
+        PgApproveResult approveResult = pgClient.approve(
+                new PgApproveCommand(payment.getPaymentKey(), payment.getAmount()));
+
+        // 결제 요청 성공 & 실패 분기
+        if (approveResult.success()) {
+            payment.approve();
+        } else {
+            payment.fail();
+        }
+
+        return new ConfirmPaymentResponse(payment.getId(), payment.getPaymentStatus().name());
+    }
 
     public void cancelPayment(Long paymentId) {
         // TODO
