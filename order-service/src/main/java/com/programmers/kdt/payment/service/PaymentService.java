@@ -41,7 +41,6 @@ public class PaymentService {
             throw new BusinessException(PaymentErrorCode.INVALID_PAYMENT_AMOUNT);
         }
 
-        // 결제 생성
         Payment payment = Payment.create(order.getOrderId(), order.getUserId(), request.amount());
 
         // 나중에 PG사 요청은 트랜잭션에서 빼는 것을 고려
@@ -110,7 +109,8 @@ public class PaymentService {
                 .map(GetPaymentHistoryResponse::from);
     }
 
-    // 결제 전액 취소
+    // 전액 환불
+    @Transactional
     public CancelPaymentResponse cancel(Long paymentId, CancelPaymentRequest request) {
         Payment payment = paymentRepository.findById(paymentId)
                 .orElseThrow(() -> new BusinessException(PaymentErrorCode.PAYMENT_NOT_FOUND));
@@ -118,7 +118,11 @@ public class PaymentService {
         // 환불금 계산
         Long refundAmount = payment.getAmount() - payment.getRefundedAmount();
 
-        payment.cancel();
+        try {
+            payment.cancel();
+        } catch (IllegalStateException e) {
+            throw new BusinessException(PaymentErrorCode.INVALID_PAYMENT_STATUS);
+        }
 
         try {
             pgClient.cancel(new PgCancelCommand(payment.getPaymentKey(), refundAmount, request.reason()));
@@ -129,4 +133,29 @@ public class PaymentService {
         return CancelPaymentResponse.from(payment);
 
     }
+
+    // 부분 환불
+    @Transactional
+    public PartialCancelPaymentResponse partialCancel(Long paymentId, PartialCancelPaymentRequest request) {
+        Payment payment = paymentRepository.findById(paymentId)
+                .orElseThrow(() -> new BusinessException(PaymentErrorCode.PAYMENT_NOT_FOUND));
+
+        try {
+            payment.partialCancel(request.amount());
+        } catch (IllegalStateException e) {
+            throw new BusinessException(PaymentErrorCode.INVALID_PAYMENT_STATUS);
+        } catch (IllegalArgumentException e) {
+            throw new BusinessException(PaymentErrorCode.INVALID_PAYMENT_AMOUNT);
+        }
+
+        try {
+            pgClient.cancel(new PgCancelCommand(payment.getPaymentKey(), request.amount(), request.reason()));
+        } catch (Exception e) {
+            throw new BusinessException(PaymentErrorCode.PG_REQUEST_FAILED); // 예외 → 롤백 → DB 상태 원복
+        }
+
+        return PartialCancelPaymentResponse.from(payment);
+    }
+
+    //
 }
