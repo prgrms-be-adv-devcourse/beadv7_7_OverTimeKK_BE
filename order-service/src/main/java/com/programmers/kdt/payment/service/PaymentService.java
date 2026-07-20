@@ -110,8 +110,23 @@ public class PaymentService {
                 .map(GetPaymentHistoryResponse::from);
     }
 
-    public void cancelPayment(Long paymentId) {
+    // 결제 전액 취소
+    public CancelPaymentResponse cancel(Long paymentId, CancelPaymentRequest request) {
+        Payment payment = paymentRepository.findById(paymentId)
+                .orElseThrow(() -> new BusinessException(PaymentErrorCode.PAYMENT_NOT_FOUND));
 
-        // TODO
+        // 환불금 계산
+        Long refundAmount = payment.getAmount() - payment.getRefundedAmount();
+
+        payment.cancel();
+
+        try {
+            pgClient.cancel(new PgCancelCommand(payment.getPaymentKey(), refundAmount, request.reason()));
+        } catch (Exception e) {
+            throw new BusinessException(PaymentErrorCode.PG_REQUEST_FAILED); // 예외 → 롤백 → DB 상태 원복
+        }
+
+        return CancelPaymentResponse.from(payment);
+
     }
 }

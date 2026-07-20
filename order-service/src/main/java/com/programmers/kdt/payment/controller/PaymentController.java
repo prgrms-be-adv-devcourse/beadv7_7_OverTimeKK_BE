@@ -57,10 +57,13 @@ public class PaymentController {
         return ApiResponse.success(response);
     }
 
-
+    // 결제 전액 취소
     @PostMapping("/{paymentId}/cancel")
-    public void cancel(@PathVariable Long paymentId) {
+    public ApiResponse<CancelPaymentResponse> cancel(
+            @PathVariable Long paymentId,
+            @RequestBody CancelPaymentRequest request) {
 
-        paymentService.cancelPayment(paymentId);
+        CancelPaymentResponse response = paymentService.cancel(paymentId, request);
+        return ApiResponse.success(response);
     }
 }
