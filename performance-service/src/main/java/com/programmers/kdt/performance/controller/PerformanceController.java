@@ -28,12 +28,12 @@ public class PerformanceController {
     }
 
     @PutMapping("/{performanceId}")
-    public ApiResponse<Void> updatePerformance(
+    public ResponseEntity<ApiResponse<PerformanceResponse>> updatePerformance(
             @PathVariable Long performanceId,
             @Valid @RequestBody PerformanceRequest request,
             @RequestHeader("X-User-Id") Long sellerId) {
-        performanceService.updatePerformance(performanceId, request, sellerId);
-        return ApiResponse.success(null);
+        PerformanceResponse res = performanceService.updatePerformance(performanceId, request, sellerId);
+        return ResponseEntity.ok(ApiResponse.success(res));
     }
 
     @PostMapping("/{performanceId}/cancel")

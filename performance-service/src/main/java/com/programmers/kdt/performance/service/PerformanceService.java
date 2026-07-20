@@ -34,7 +34,7 @@ public class PerformanceService {
     }
 
     @Transactional
-    public void updatePerformance(Long performanceId, PerformanceRequest request, Long sellerId) {
+    public PerformanceResponse updatePerformance(Long performanceId, PerformanceRequest request, Long sellerId) {
         Performance performance = getPerformance(performanceId);
         validateOwner(performance, sellerId);
         performance.updatePerformance(
@@ -45,6 +45,7 @@ public class PerformanceService {
                 request.endDate(),
                 request.ticketOpenAt(),
                 request.hallId());
+        return new PerformanceResponse(performance.getPerformanceId(), performance.getTitle());
     }
 
     private Performance getPerformance(Long id) {
