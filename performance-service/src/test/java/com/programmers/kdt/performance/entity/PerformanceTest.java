@@ -45,4 +45,29 @@ class PerformanceTest {
                 .isInstanceOf(BusinessException.class)
                 .hasMessage(PerformanceErrorCode.INVALID_TICKET_OPEN.getMessage());
     }
+
+    @Test
+    void 공연_수정_성공() {
+        Performance performance = Performance.create(
+                "뮤지컬A", "설명", "120분",
+                LocalDate.of(2026, 8, 1), LocalDate.of(2026, 8, 31), null, 1L, 1L);
+
+        performance.update("뮤지컬B", "수정설명", "130분",
+                LocalDate.of(2026, 9, 1), LocalDate.of(2026, 9, 30), null, 2L);
+
+        assertThat(performance.getTitle()).isEqualTo("뮤지컬B");
+        assertThat(performance.getHallId()).isEqualTo(2L);
+    }
+
+    @Test
+    void 수정시_종료일이_시작일보다_빠르면_예외() {
+        Performance performance = Performance.create(
+                "뮤지컬A", "설명", "120분",
+                LocalDate.of(2026, 8, 1), LocalDate.of(2026, 8, 31), null, 1L, 1L);
+
+        assertThatThrownBy(() -> performance.update("뮤지컬B", "설명", "120분",
+                LocalDate.of(2026, 9, 30), LocalDate.of(2026, 9, 1), null, 1L))
+                .isInstanceOf(BusinessException.class)
+                .hasMessage(PerformanceErrorCode.INVALID_PERIOD.getMessage());
+    }
 }
