@@ -1,6 +1,8 @@
 package com.programmers.kdt.performance.entity;
 
 import com.programmers.kdt.common.entity.BaseTimeEntity;
+import com.programmers.kdt.common.exception.BusinessException;
+import com.programmers.kdt.performance.exception.PerformanceErrorCode;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -43,4 +45,31 @@ public class Performance extends BaseTimeEntity {
 
     @Column(nullable = false)
     private Long hallId;
+
+
+    public static Performance create(String title, String description, String runtime,
+                                     LocalDate startDate, LocalDate endDate, LocalDateTime ticketOpenAt,
+                                     Long sellerId, Long hallId) {
+        if (endDate.isBefore(startDate)) {
+            throw new BusinessException(PerformanceErrorCode.INVALID_PERIOD);
+        }
+        if (ticketOpenAt != null && ticketOpenAt.toLocalDate().isAfter(startDate)) {
+            throw new BusinessException(PerformanceErrorCode.INVALID_TICKET_OPEN);
+        }
+        Performance performance = new Performance();
+        performance.title = title;
+        performance.description = description;
+        performance.runtime = runtime;
+        performance.startDate = startDate;
+        performance.endDate = endDate;
+        performance.ticketOpenAt = ticketOpenAt;
+        performance.sellerId = sellerId;
+        performance.hallId = hallId;
+        return performance;
+    }
+
+
+
+
+    
 }
