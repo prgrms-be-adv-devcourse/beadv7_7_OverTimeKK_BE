@@ -1,8 +1,7 @@
 package com.programmers.kdt.performance.service;
 
-import com.programmers.kdt.performance.dto.RegisterPerformanceRequest;
-import com.programmers.kdt.performance.dto.RegisterPerformanceResponse;
-import com.programmers.kdt.performance.dto.UpdatePerformanceRequest;
+import com.programmers.kdt.performance.dto.PerformanceRequest;
+import com.programmers.kdt.performance.dto.PerformanceResponse;
 import com.programmers.kdt.common.exception.BusinessException;
 import com.programmers.kdt.performance.entity.Performance;
 import com.programmers.kdt.performance.exception.PerformanceErrorCode;
@@ -18,7 +17,7 @@ public class PerformanceService {
     private final PerformanceRepository performanceRepository;
 
     @Transactional
-    public RegisterPerformanceResponse registerPerformance(RegisterPerformanceRequest request, Long sellerId) {
+    public PerformanceResponse registerPerformance(PerformanceRequest request, Long sellerId) {
         // TODO: hallId 존재 검증(venue), sellerId 판매자 검증(user)
         Performance performance = Performance.create(
                 request.title(),
@@ -31,11 +30,11 @@ public class PerformanceService {
                 request.hallId());
 
         Performance saved = performanceRepository.save(performance);
-        return new RegisterPerformanceResponse(saved.getPerformanceId(), saved.getTitle());
+        return new PerformanceResponse(saved.getPerformanceId(), saved.getTitle());
     }
 
     @Transactional
-    public void updatePerformance(Long performanceId, UpdatePerformanceRequest request, Long sellerId) {
+    public void updatePerformance(Long performanceId, PerformanceRequest request, Long sellerId) {
         Performance performance = getPerformance(performanceId);
         validateOwner(performance, sellerId);
         performance.update(
