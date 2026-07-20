@@ -49,11 +49,11 @@ public class PaymentController {
 
     // 결제 내역 조회
     @GetMapping
-    public ApiResponse<Page<PaymentHistoryResponse>> getPaymentHistory(
+    public ApiResponse<Page<GetPaymentHistoryResponse>> getPaymentHistory(
             @RequestParam Long userId,
             @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
 
-        Page<PaymentHistoryResponse> response = paymentService.getPaymentHistory(userId, pageable);
+        Page<GetPaymentHistoryResponse> response = paymentService.getPaymentHistory(userId, pageable);
         return ApiResponse.success(response);
     }
 

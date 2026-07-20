@@ -38,12 +38,7 @@ public class PaymentService {
         payment.assignPaymentKey(readyResult.transactionKey());
         paymentRepository.save(payment);
 
-        return new CreatePaymentResponse(
-                payment.getId(),
-                payment.getPaymentStatus().name(),
-                readyResult.transactionKey(),
-                readyResult.redirectionUrl()
-        );
+        return CreatePaymentResponse.of(payment, readyResult);
     }
 
     // 결제 확인
@@ -67,7 +62,7 @@ public class PaymentService {
             payment.fail();
         }
 
-        return new ConfirmPaymentResponse(payment.getId(), payment.getPaymentStatus().name());
+        return ConfirmPaymentResponse.from(payment);
     }
 
     // 결제 실패 요청
@@ -82,20 +77,14 @@ public class PaymentService {
 
         payment.fail();
 
-        return new FailPaymentResponse(payment.getId(), payment.getPaymentStatus().name());
+        return FailPaymentResponse.from(payment);
     }
 
     // 결제 내역 조회
     @Transactional(readOnly = true)
-    public Page<PaymentHistoryResponse> getPaymentHistory(Long userId, Pageable pageable) {
+    public Page<GetPaymentHistoryResponse> getPaymentHistory(Long userId, Pageable pageable) {
         return paymentRepository.findByUserId(userId, pageable)
-                .map(payment -> new PaymentHistoryResponse(
-                        payment.getId(),
-                        payment.getOrderId(),
-                        payment.getAmount(),
-                        payment.getPaymentStatus().name(),
-                        payment.getCreatedAt()
-                ));
+                .map(GetPaymentHistoryResponse::from);
     }
 
     public void cancelPayment(Long paymentId) {
