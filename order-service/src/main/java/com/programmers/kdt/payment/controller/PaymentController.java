@@ -1,10 +1,12 @@
 package com.programmers.kdt.payment.controller;
 
+import com.programmers.kdt.common.response.ApiResponse;
 import com.programmers.kdt.payment.dto.CreatePaymentRequest;
 import com.programmers.kdt.payment.dto.CreatePaymentResponse;
 import com.programmers.kdt.payment.service.PaymentService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -14,9 +16,11 @@ public class PaymentController {
 
     private final PaymentService paymentService;
 
-    @PostMapping
-    public CreatePaymentResponse pay(@Valid @RequestBody CreatePaymentRequest request) {
-        return paymentService.pay(request);
+    @PostMapping("/pay")
+    @ResponseStatus(HttpStatus.CREATED)
+    public ApiResponse<CreatePaymentResponse> pay(@Valid @RequestBody CreatePaymentRequest request) {
+        CreatePaymentResponse response = paymentService.pay(request);
+        return ApiResponse.success(response);
     }
 
     @PostMapping("/{paymentId}/cancel")

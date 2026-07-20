@@ -5,6 +5,7 @@ import org.springframework.stereotype.Component;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
+// 실제 PG사가 아닌 모킹으로 우선 구현(토스페이로 교체 예정)
 @Component
 public class MockPgClient implements PgClient {
 

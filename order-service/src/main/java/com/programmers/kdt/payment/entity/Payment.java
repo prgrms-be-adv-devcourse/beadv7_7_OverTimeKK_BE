@@ -30,7 +30,7 @@ public class Payment extends BaseTimeEntity {
     private Long refundedAmount;
 
     @Column(name = "payment_key")
-    private String paymentKey;
+    private String paymentKey; // PG 참조값
 
     //결제 생성 메서드
     public static Payment create(Long orderId, Long amount) {
