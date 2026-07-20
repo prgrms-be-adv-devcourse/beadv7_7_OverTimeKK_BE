@@ -19,7 +19,7 @@ public class PerformanceService {
     @Transactional
     public PerformanceResponse registerPerformance(PerformanceRequest request, Long sellerId) {
         // TODO: hallId 존재 검증(venue), sellerId 판매자 검증(user)
-        Performance performance = Performance.create(
+        Performance performance = Performance.createPerformance(
                 request.title(),
                 request.description(),
                 request.runtime(),
@@ -37,7 +37,7 @@ public class PerformanceService {
     public void updatePerformance(Long performanceId, PerformanceRequest request, Long sellerId) {
         Performance performance = getPerformance(performanceId);
         validateOwner(performance, sellerId);
-        performance.update(
+        performance.updatePerformance(
                 request.title(),
                 request.description(),
                 request.runtime(),

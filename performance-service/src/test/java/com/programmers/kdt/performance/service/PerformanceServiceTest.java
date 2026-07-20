@@ -40,7 +40,7 @@ class PerformanceServiceTest {
                 null, 1L);
         Long sellerId = 1L;
 
-        Performance saved = Performance.create(
+        Performance saved = Performance.createPerformance(
                 "뮤지컬A", "설명", "120분",
                 LocalDate.of(2026, 8, 1), LocalDate.of(2026, 8, 31),
                 null, sellerId, 1L);
@@ -58,7 +58,7 @@ class PerformanceServiceTest {
 
     @Test
     void 공연_수정_성공() {
-        Performance performance = Performance.create(
+        Performance performance = Performance.createPerformance(
                 "뮤지컬A", "설명", "120분",
                 LocalDate.of(2026, 8, 1), LocalDate.of(2026, 8, 31), null, 1L, 1L);
         given(performanceRepository.findById(1L)).willReturn(Optional.of(performance));
@@ -87,7 +87,7 @@ class PerformanceServiceTest {
 
     @Test
     void 판매자_본인이_아니면_수정_예외() {
-        Performance performance = Performance.create(
+        Performance performance = Performance.createPerformance(
                 "뮤지컬A", "설명", "120분",
                 LocalDate.of(2026, 8, 1), LocalDate.of(2026, 8, 31), null, 1L, 1L);
         given(performanceRepository.findById(1L)).willReturn(Optional.of(performance));

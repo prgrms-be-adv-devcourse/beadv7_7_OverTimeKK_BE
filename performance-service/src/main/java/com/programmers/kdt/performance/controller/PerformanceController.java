@@ -20,7 +20,7 @@ public class PerformanceController {
 
     // TODO: user-service 판매자 검증필요
     @PostMapping
-    public ResponseEntity<ApiResponse<PerformanceResponse>> register(
+    public ResponseEntity<ApiResponse<PerformanceResponse>> registerPerformance(
             @Valid @RequestBody PerformanceRequest request,
             @RequestHeader("X-User-Id") Long sellerId) {
         PerformanceResponse res = performanceService.registerPerformance(request, sellerId);
