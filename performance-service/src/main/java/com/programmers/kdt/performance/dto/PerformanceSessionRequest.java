@@ -5,14 +5,17 @@ import com.fasterxml.jackson.annotation.JsonFormat;
 import com.programmers.kdt.performance.entity.Performance;
 import com.programmers.kdt.performance.entity.PerformanceSession;
 import com.programmers.kdt.performance.entity.PerformanceSessionId;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 
 import java.time.LocalDateTime;
 
 public record PerformanceSessionRequest(
-        Long sessionId,
-        Long performanceId,
-        String actor,
+        @NotNull Long sessionId,
+        @NotNull Long performanceId,
+        @NotBlank  String actor,
 
+        @NotNull
         @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
         LocalDateTime performanceStartAt
 ) {
