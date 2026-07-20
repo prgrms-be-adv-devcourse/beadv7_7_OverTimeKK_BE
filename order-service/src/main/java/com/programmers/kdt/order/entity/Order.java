@@ -8,6 +8,8 @@ import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "orders")
@@ -22,11 +24,11 @@ public class Order extends BaseTimeEntity {
     @Column(nullable = false)
     private Long userId;
 
-    @Column(nullable = false)
-    private Long ticketId;
+    @OneToMany(mappedBy = "order", cascade = CascadeType.PERSIST)
+    private List<OrderItem> items = new ArrayList<>();
 
     @Column(nullable = false)
-    private Long orderAmount;
+    private Long totalAmount;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
@@ -36,31 +38,44 @@ public class Order extends BaseTimeEntity {
     private LocalDate orderDate;
 
 
-    private Order(Long userId, Long ticketId, Long orderAmount){
-        validateOrder(userId, ticketId, orderAmount);
+    private Order(Long userId, List<OrderItem> items){
+        validateItems(items);
         this.userId = userId;
-        this.ticketId = ticketId;
-        this.orderAmount = orderAmount;
         this.orderStatus = OrderStatus.PENDING;
         this.orderDate = LocalDate.now();
+
+        for(OrderItem item : items){
+            addOrderItem(item);
+        }
+        this.totalAmount = calculateAmount();
     }
 
     // 주문 생성
-    public static Order create(Long userId, Long ticketId, Long orderAmount){
-        return new Order(userId, ticketId, orderAmount);
+    public static Order create(Long userId, List<OrderItem> items){
+        return new Order(userId, items);
     }
 
     // 주문 검증
-    private void validateOrder(Long userId, Long ticketId, Long orderAmount){
-        if(userId == null){
-            throw new BusinessException(OrderErrorCode.USER_ID_REQUIRED); // *** USERERRORCODE에 있어야 하는지 확인
+    private void validateItems(List<OrderItem> items){
+        if(items == null || items.isEmpty()){
+            throw new IllegalStateException("주문할 상품이 없습니다.");
         }
-        if(ticketId == null){
-            throw new BusinessException(OrderErrorCode.TICKET_ID_REQUIRED); // *** TICKETERRORCODE에 있어야 하는지 확인
+    }
+
+    // 주문항목 추가
+    public void addOrderItem(OrderItem item){
+        this.items.add(item);
+        // 주문과 주문항목 연결
+        if(item.getOrder() != this){
+            item.assignOrder(this);
         }
-        if(orderAmount == null || orderAmount <= 0){
-            throw new BusinessException(OrderErrorCode.INVALID_ORDER_AMOUNT);
-        }
+    }
+
+    // 총 주문 금액 계산
+    private Long calculateAmount(){
+        return items.stream()
+                .mapToLong(OrderItem::getTicketPrice)
+                .sum();
     }
 
 
