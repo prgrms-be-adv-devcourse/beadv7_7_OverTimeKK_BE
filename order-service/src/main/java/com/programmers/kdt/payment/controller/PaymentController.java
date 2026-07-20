@@ -76,6 +76,12 @@ public class PaymentController {
         return ApiResponse.success(response);
     }
 
-
-
+    @GetMapping("/{paymentId}/refund")
+    public ApiResponse<Page<GetPaymentRefundHistoryResponse>> getRefundHistory(
+            @PathVariable Long paymentId,
+            @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable
+    ) {
+        Page<GetPaymentRefundHistoryResponse> response = paymentService.getRefundHistory(paymentId, pageable);
+        return ApiResponse.success(response);
+    }
 }

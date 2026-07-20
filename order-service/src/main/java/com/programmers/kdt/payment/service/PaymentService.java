@@ -9,6 +9,7 @@ import com.programmers.kdt.payment.dto.*;
 import com.programmers.kdt.payment.entity.Payment;
 import com.programmers.kdt.payment.entity.PaymentStatus;
 import com.programmers.kdt.payment.exception.PaymentErrorCode;
+import com.programmers.kdt.payment.repository.PaymentRefundRepository;
 import com.programmers.kdt.payment.repository.PaymentRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -23,6 +24,7 @@ public class PaymentService {
 
     private final PaymentRepository paymentRepository;
     private final OrderRepository orderRepository;
+    private final PaymentRefundRepository refundRepository;
     private final PgClient pgClient;
 
     // 결제 생성
@@ -157,5 +159,14 @@ public class PaymentService {
         return PartialCancelPaymentResponse.from(payment);
     }
 
-    //
+    // 환불 내역 조회
+    @Transactional(readOnly = true)
+    public Page<GetPaymentRefundHistoryResponse> getRefundHistory (Long paymentId, Pageable pageable) {
+        if (!paymentRepository.existsById(paymentId)) {
+            throw new BusinessException(PaymentErrorCode.PAYMENT_NOT_FOUND);
+        }
+
+        return refundRepository.findByPaymentId(paymentId, pageable)
+                .map(GetPaymentRefundHistoryResponse::from);
+    }
 }
