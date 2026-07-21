@@ -96,9 +96,10 @@ public class PaymentService {
     public FailPaymentResponse fail(Long paymentId, FailPaymentRequest request) {
         Payment payment = getPayment(paymentId);
 
+        boolean alreadyFailed = payment.getPaymentStatus() == PaymentStatus.FAILED;
         payment.fail();
 
-        if (payment.getPaymentKey() != null) {
+        if (!alreadyFailed && payment.getPaymentKey() != null) {
             try {
                 pgClient.cancel(new PgCancelCommand(payment.getPaymentKey(), payment.getAmount(), request.reason()));
             } catch (Exception e) {
