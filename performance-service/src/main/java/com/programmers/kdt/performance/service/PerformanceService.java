@@ -1,7 +1,10 @@
 package com.programmers.kdt.performance.service;
 
+import com.programmers.kdt.performance.dto.PerformanceDetailResponse;
 import com.programmers.kdt.performance.dto.PerformanceRequest;
 import com.programmers.kdt.performance.dto.PerformanceResponse;
+
+import java.util.List;
 import com.programmers.kdt.common.exception.BusinessException;
 import com.programmers.kdt.performance.entity.Performance;
 import com.programmers.kdt.performance.exception.PerformanceErrorCode;
@@ -60,6 +63,18 @@ public class PerformanceService {
         performanceSessionRepository.deleteByPerformanceSessionId_PerformanceId(performanceId);
         performanceRepository.delete(performance);
         // TODO: order-service에 판매/주문 존재 확인 또는 취소 이벤트 발행에 대해서는 논의사항(어느정도의갚아를가져갈지)
+    }
+
+    @Transactional(readOnly = true)
+    public PerformanceDetailResponse getPerformanceDetail(Long performanceId) {
+        return PerformanceDetailResponse.from(getPerformance(performanceId));
+    }
+
+    @Transactional(readOnly = true)
+    public List<PerformanceDetailResponse> getPerformances() {
+        return performanceRepository.findAll().stream()
+                .map(PerformanceDetailResponse::from)
+                .toList();
     }
 
     private Performance getPerformance(Long id) {

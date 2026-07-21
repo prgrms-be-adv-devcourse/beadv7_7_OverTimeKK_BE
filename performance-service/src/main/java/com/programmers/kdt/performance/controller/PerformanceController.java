@@ -1,8 +1,11 @@
 package com.programmers.kdt.performance.controller;
 
 import com.programmers.kdt.common.response.ApiResponse;
+import com.programmers.kdt.performance.dto.PerformanceDetailResponse;
 import com.programmers.kdt.performance.dto.PerformanceRequest;
 import com.programmers.kdt.performance.dto.PerformanceResponse;
+
+import java.util.List;
 import com.programmers.kdt.performance.service.PerformanceService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -33,6 +36,16 @@ public class PerformanceController {
             @Valid @RequestBody PerformanceRequest request,
             @RequestHeader("X-User-Id") Long sellerId) {
         return ApiResponse.success(performanceService.updatePerformance(performanceId, request, sellerId));
+    }
+
+    @GetMapping("/{performanceId}")
+    public ApiResponse<PerformanceDetailResponse> getPerformance(@PathVariable Long performanceId) {
+        return ApiResponse.success(performanceService.getPerformanceDetail(performanceId));
+    }
+
+    @GetMapping
+    public ApiResponse<List<PerformanceDetailResponse>> getPerformances() {
+        return ApiResponse.success(performanceService.getPerformances());
     }
 
     @PostMapping("/{performanceId}/cancel")
