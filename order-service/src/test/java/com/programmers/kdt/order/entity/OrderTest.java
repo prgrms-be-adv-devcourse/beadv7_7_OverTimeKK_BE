@@ -43,7 +43,7 @@ public class OrderTest {
         }
 
         @Test
-        @DisplayName("orderItem이 null이면 예외가 발생한다.")
+        @DisplayName("주문 항목 목록이 null이면 예외가 발생한다.")
         void createOrderNullOrderItem(){
             assertThatThrownBy(()-> Order.create(1L, null))
                     .isInstanceOfSatisfying(
@@ -56,7 +56,7 @@ public class OrderTest {
         }
 
         @Test
-        @DisplayName("orderItem이 빈 항목이면 예외가 발생한다.")
+        @DisplayName("주문 항목 목록이 비어있으면 예외가 발생한다.")
         void createOrderEmptyOrderItem(){
             assertThatThrownBy(() -> Order.create(1L, List.of()))
                     .isInstanceOfSatisfying(
@@ -69,7 +69,23 @@ public class OrderTest {
 
         }
 
+        @Test
+        @DisplayName("주문 항목 목록에 null 항목이 포함되면 예외가 발생한다.")
+        void createOrderWithNullItem() {
+            // given
+            List<OrderItem> items = new ArrayList<>();
+            items.add(null);
 
+            // when & then
+            assertThatThrownBy(() -> Order.create(1L, items))
+                    .isInstanceOfSatisfying(
+                            BusinessException.class,
+                            exception -> {
+                                assertThat(exception.getErrorCode())
+                                        .isEqualTo(OrderErrorCode.ORDER_ITEMS_REQUIRED);
+                            }
+                    );
+        }
     }
 
     @Nested

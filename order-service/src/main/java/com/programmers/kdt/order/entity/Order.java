@@ -44,7 +44,7 @@ public class Order extends BaseTimeEntity {
         this.orderStatus = OrderStatus.PENDING;
         this.orderDate = LocalDate.now();
         for(OrderItem item : items){
-            addOrderItem(item);
+            assignOrderItem(item);
         }
         this.totalAmount = calculateAmount();
     }
@@ -59,10 +59,13 @@ public class Order extends BaseTimeEntity {
         if(items == null || items.isEmpty()){
             throw new BusinessException(OrderErrorCode.ORDER_ITEMS_REQUIRED);
         }
+        if(items.stream().anyMatch(item -> item==null)){
+            throw new BusinessException(OrderErrorCode.ORDER_ITEMS_REQUIRED);
+        }
     }
 
     // 주문항목 추가
-    private void addOrderItem(OrderItem item){
+    private void assignOrderItem(OrderItem item){
         this.items.add(item);
         item.assignOrder(this);
     }
