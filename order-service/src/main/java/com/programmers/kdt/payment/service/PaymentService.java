@@ -1,7 +1,6 @@
 package com.programmers.kdt.payment.service;
 
 import com.programmers.kdt.common.exception.BusinessException;
-import com.programmers.kdt.common.exception.CommonErrorCode;
 import com.programmers.kdt.order.entity.Order;
 import com.programmers.kdt.order.repository.OrderRepository;
 import com.programmers.kdt.payment.client.*;
@@ -32,11 +31,10 @@ public class PaymentService {
     @Transactional
     public CreatePaymentResponse pay(CreatePaymentRequest request) {
         Order order = orderRepository.findById(request.orderId())
-                .orElseThrow(() -> new BusinessException(PaymentErrorCode.MISSING_ORDER_ID));
+                .orElseThrow(() -> new BusinessException(PaymentErrorCode.ORDER_NOT_FOUND));
 
-        // orderId 중복 검증
         if (paymentRepository.existsByOrderId(request.orderId())) {
-            throw new BusinessException(PaymentErrorCode.PAYMENT_ALREADY_EXISTS); // 추후에 409 CONFLICT로 응답 수정
+            throw new BusinessException(PaymentErrorCode.PAYMENT_ALREADY_EXISTS);
         }
 
         // 주문 금액이 같은지 판별

@@ -14,6 +14,7 @@ public enum PaymentErrorCode implements ErrorCode {
     ZERO_REFUND_AMOUNT(HttpStatus.BAD_REQUEST, "P_400_7", "환불 금액은 0원보다 커야 합니다. 금액: {0}"),
 
     PAYMENT_NOT_FOUND(HttpStatus.NOT_FOUND, "P_404_1", "결제 내역을 찾을 수 없습니다."),
+    ORDER_NOT_FOUND(HttpStatus.NOT_FOUND, "P_404_2", "주문 내역을 찾을 수 없습니다."),
 
     PAYMENT_ALREADY_EXISTS(HttpStatus.CONFLICT, "P_409_1", "이미 해당 주문에 대한 결제가 존재합니다."),
     INVALID_PAYMENT_STATUS(HttpStatus.CONFLICT, "P_409_2", "현재 결제 상태에서는 처리할 수 없는 요청입니다. 현재 상태: {0}"),
