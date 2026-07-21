@@ -39,10 +39,10 @@ public class PaymentOptimisticLockTest {
 
         entityManager.clear();
 
-        payment1.partialRefund(3000L);
+        payment1.completeRefund(3000L);
         paymentRepository.saveAndFlush(payment1); // 먼저 저장 → 버전 증가, 성공
 
-        payment2.partialRefund(2000L);
+        payment2.completeRefund(2000L);
         assertThatThrownBy(() -> paymentRepository.saveAndFlush(payment2))
                 .isInstanceOf(ObjectOptimisticLockingFailureException.class); // 버전이 밀려서 실패
     }

@@ -156,7 +156,7 @@ class PaymentTest {
             //given
             Payment payment = Payment.create(1L, 1L, 10000L);
             payment.approve();
-            payment.partialRefund(3000L);
+            payment.completeRefund(3000L);
 
             //when
             payment.refund();
@@ -202,7 +202,7 @@ class PaymentTest {
             payment.approve();
 
             //when
-            payment.partialRefund(4000L);
+            payment.completeRefund(4000L);
 
             //then
             assertThat(payment.getPaymentStatus()).isEqualTo(PaymentStatus.PARTIAL_CANCELLED);
@@ -217,8 +217,8 @@ class PaymentTest {
             payment.approve();
 
             //when
-            payment.partialRefund(3000L);
-            payment.partialRefund(4000L);
+            payment.completeRefund(3000L);
+            payment.completeRefund(4000L);
 
             //then
             assertThat(payment.getPaymentStatus()).isEqualTo(PaymentStatus.PARTIAL_CANCELLED);
@@ -231,11 +231,11 @@ class PaymentTest {
             //given
             Payment payment = Payment.create(1L, 1L, 10000L);
             payment.approve();
-            payment.partialRefund(3000L);
+            payment.completeRefund(3000L);
 
             //when
-            payment.partialRefund(3000L);
-            payment.partialRefund(4000L);
+            payment.completeRefund(3000L);
+            payment.completeRefund(4000L);
 
             assertThat(payment.getPaymentStatus()).isEqualTo(PaymentStatus.CANCELLED);
             assertThat(payment.getRefundedAmount()).isEqualTo(10000L);
@@ -247,11 +247,11 @@ class PaymentTest {
             Payment payment = Payment.create(1L, 1L,10000L);
             payment.approve();
 
-            assertThatThrownBy(() -> payment.partialRefund(null))
+            assertThatThrownBy(() -> payment.completeRefund(null))
                     .isInstanceOf(BusinessException.class);
-            assertThatThrownBy(() -> payment.partialRefund(0L))
+            assertThatThrownBy(() -> payment.completeRefund(0L))
                     .isInstanceOf(BusinessException.class);
-            assertThatThrownBy(() -> payment.partialRefund(-10000L))
+            assertThatThrownBy(() -> payment.completeRefund(-10000L))
                     .isInstanceOf(BusinessException.class);
         }
 
@@ -261,10 +261,10 @@ class PaymentTest {
             //given
             Payment payment = Payment.create(1L, 1L, 10000L);
             payment.approve();
-            payment.partialRefund(7000L);
+            payment.completeRefund(7000L);
 
             //when & then
-            assertThatThrownBy(() -> payment.partialRefund(5000L))
+            assertThatThrownBy(() -> payment.completeRefund(5000L))
                     .isInstanceOf(BusinessException.class);
 
         }
@@ -273,7 +273,7 @@ class PaymentTest {
         @DisplayName("READY 상태에서 부분취소하면 예외가 발생한다.")
         void readyFromPartialCancelled() {
             Payment payment = Payment.create(1L, 1L, 10000L);
-            assertThatThrownBy(() -> payment.partialRefund(5000L))
+            assertThatThrownBy(() -> payment.completeRefund(5000L))
                     .isInstanceOf(BusinessException.class);
         }
     }

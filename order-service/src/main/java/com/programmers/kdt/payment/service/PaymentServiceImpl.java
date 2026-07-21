@@ -3,7 +3,7 @@ package com.programmers.kdt.payment.service;
 import com.programmers.kdt.common.exception.BusinessException;
 import com.programmers.kdt.order.entity.Order;
 import com.programmers.kdt.order.repository.OrderRepository;
-import com.programmers.kdt.payment.client.*;
+import com.programmers.kdt.payment.client.pg.*;
 import com.programmers.kdt.payment.dto.*;
 import com.programmers.kdt.payment.entity.Payment;
 import com.programmers.kdt.payment.entity.PaymentRefund;
@@ -151,7 +151,7 @@ public class PaymentServiceImpl implements PaymentService{
         Payment payment = getPayment(paymentId);
 
         try {
-            payment.partialRefund(request.amount());
+            payment.completeRefund(request.amount());
             paymentRepository.saveAndFlush(payment); // 미리 flush를 통해 버전이 일치하는지 검증
         } catch (ObjectOptimisticLockingFailureException e) { // 충돌 발생 시
             throw new BusinessException(PaymentErrorCode.PAYMENT_CONCURRENT_MODIFICATION);
