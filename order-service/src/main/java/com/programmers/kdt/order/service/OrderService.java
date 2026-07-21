@@ -1,37 +1,43 @@
 package com.programmers.kdt.order.service;
 
 import com.programmers.kdt.common.exception.BusinessException;
-import com.programmers.kdt.order.exception.OrderErrorCode;
+import com.programmers.kdt.order.client.TicketClient;
+import com.programmers.kdt.order.client.TicketHoldResult;
 import com.programmers.kdt.order.dto.CreateOrderRequest;
 import com.programmers.kdt.order.dto.CreateOrderResponse;
 import com.programmers.kdt.order.entity.Order;
+import com.programmers.kdt.order.entity.OrderItem;
+import com.programmers.kdt.order.exception.OrderErrorCode;
 import com.programmers.kdt.order.repository.OrderRepository;
-import jakarta.transaction.Transactional;
+import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+
+import java.util.List;
+
 
 @Service
 @RequiredArgsConstructor
 public class OrderService {
-    OrderRepository orderRepository;
+    private final OrderRepository orderRepository;
+    private final TicketClient ticketClient;
 
-    // 주문 생성
+    // 주문 요청
     @Transactional
     public CreateOrderResponse createOrder(CreateOrderRequest request) {
-        // 1. 사용자 확인
+        // 존재하는 좌석인지, 좌석 점유 여부 확인 및 점유 요청
+       TicketHoldResult holdTicket = ticketClient.holdSeat(request.ticketId(), request.userId()) ; // 추후 ticketService
 
-        // 2. 좌석 점유 확인 및 요청
-        // Ticket ticket = ticketService.holdSeat(request.ticketId(), request.userId()); // Ticket 반환
+        // 주문 항목 생성 - 현재는 티켓 1매만 가능
+        OrderItem item = OrderItem.create(holdTicket.ticketId(), holdTicket.ticketPrice());
 
-        // 3. 주문 생성
-        // Order order = Order.create(request.userId(), );
-        // 4. 주문 저장
-        // orderRepository.save(order);
+        // 주문 생성 및 저장
+        Order order = Order.create(request.userId(), List.of(item));
+        Order savedOrder = orderRepository.save(order);
 
-        // 4. 결제 생성 요청
-        //paymentService.create();
-        return null;
+        return CreateOrderResponse.from(savedOrder);
     }
+
     // 주문 완료
     public void completeOrder(Long orderId){
         Order order = findOrder(orderId);

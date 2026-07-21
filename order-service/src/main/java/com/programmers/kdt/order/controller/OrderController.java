@@ -5,6 +5,7 @@ import com.programmers.kdt.order.dto.CreateOrderResponse;
 import com.programmers.kdt.order.service.OrderService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -14,11 +15,14 @@ public class OrderController {
 
     private final OrderService orderService;
 
+    // 주문 요청
     @PostMapping
+    @ResponseStatus(HttpStatus.CREATED)
     public CreateOrderResponse create(@Valid @RequestBody CreateOrderRequest request) {
         return orderService.createOrder(request);
     }
 
+    // 주문 취소
     @PostMapping("/{orderId}/cancel")
     public void cancel(@PathVariable Long orderId) {
         orderService.cancelOrder(orderId);
