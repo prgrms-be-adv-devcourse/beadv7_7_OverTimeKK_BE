@@ -37,6 +37,10 @@ public class Payment extends BaseTimeEntity {
     @Column(name = "payment_key")
     private String paymentKey; // PG 참조값
 
+    @Version
+    @Column(name = "version", nullable = false)
+    private Long version;
+
     //결제 생성 메서드
     public static Payment create(Long orderId, Long userId, Long amount) {
 
@@ -105,7 +109,7 @@ public class Payment extends BaseTimeEntity {
 
         long remaining = amount - refundedAmount; // 남은 금액 = 결제금액 - 취소금액
         if (cancelAmount == null || cancelAmount <= 0 || cancelAmount > remaining) {
-            throw new BusinessException(PaymentErrorCode.INVALID_REFUND_AMOUNT, refundedAmount , cancelAmount);
+            throw new BusinessException(PaymentErrorCode.INVALID_REFUND_AMOUNT, refundedAmount, cancelAmount);
         }
 
         this.refundedAmount += cancelAmount;

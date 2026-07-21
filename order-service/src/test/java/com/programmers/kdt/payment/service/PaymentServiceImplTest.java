@@ -4,7 +4,6 @@ package com.programmers.kdt.payment.service;
 import com.programmers.kdt.common.exception.BusinessException;
 import com.programmers.kdt.order.entity.Order;
 import com.programmers.kdt.order.repository.OrderRepository;
-import com.programmers.kdt.payment.client.PgApproveCommand;
 import com.programmers.kdt.payment.client.PgApproveResult;
 import com.programmers.kdt.payment.client.PgClient;
 import com.programmers.kdt.payment.client.PgReadyResult;
@@ -32,7 +31,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
-class PaymentServiceTest {
+class PaymentServiceImplTest {
 
     @Mock
     private PaymentRepository paymentRepository;
@@ -43,11 +42,11 @@ class PaymentServiceTest {
     @Mock
     private PgClient pgClient;
 
-    private PaymentService paymentService;
+    private PaymentServiceImpl paymentServiceImpl;
 
     @BeforeEach
     void setUp() {
-        paymentService = new PaymentService(paymentRepository, orderRepository, paymentRefundRepository, pgClient);
+        paymentServiceImpl = new PaymentServiceImpl(paymentRepository, orderRepository, paymentRefundRepository, pgClient);
     }
 
     @Nested
@@ -71,7 +70,7 @@ class PaymentServiceTest {
             when(paymentRepository.existsByOrderId(1L)).thenReturn(false);
             when(pgClient.ready(any())).thenReturn(readyResult);
 
-            CreatePaymentResponse response = paymentService.pay(request);
+            CreatePaymentResponse response = paymentServiceImpl.pay(request);
 
             assertThat(response).isNotNull();
             verify(paymentRepository).save(any());
@@ -82,7 +81,7 @@ class PaymentServiceTest {
         void payOrderNotFound() {
             when(orderRepository.findById(1L)).thenReturn(Optional.empty());
 
-            assertThatThrownBy(() -> paymentService.pay(request))
+            assertThatThrownBy(() -> paymentServiceImpl.pay(request))
                     .isInstanceOf(BusinessException.class)
                     .extracting(e -> ((BusinessException) e).getErrorCode())
                     .isEqualTo(PaymentErrorCode.ORDER_NOT_FOUND);
@@ -98,7 +97,7 @@ class PaymentServiceTest {
             when(orderRepository.findById(1L)).thenReturn(Optional.of(order));
             when(paymentRepository.existsByOrderId(1L)).thenReturn(true);
 
-            assertThatThrownBy(() -> paymentService.pay(request))
+            assertThatThrownBy(() -> paymentServiceImpl.pay(request))
                     .isInstanceOf(BusinessException.class)
                     .extracting(e -> ((BusinessException) e).getErrorCode())
                     .isEqualTo(PaymentErrorCode.PAYMENT_ALREADY_EXISTS);
@@ -115,7 +114,7 @@ class PaymentServiceTest {
             when(orderRepository.findById(1L)).thenReturn(Optional.of(order));
             when(paymentRepository.existsByOrderId(1L)).thenReturn(false);
 
-            assertThatThrownBy(() -> paymentService.pay(request))
+            assertThatThrownBy(() -> paymentServiceImpl.pay(request))
                     .isInstanceOf(BusinessException.class)
                     .extracting(e -> ((BusinessException) e).getErrorCode())
                     .isEqualTo(PaymentErrorCode.INVALID_PAYMENT_AMOUNT);
@@ -134,7 +133,7 @@ class PaymentServiceTest {
             when(paymentRepository.existsByOrderId(1L)).thenReturn(false);
             when(pgClient.ready(any())).thenThrow(new BusinessException(PaymentErrorCode.PG_REQUEST_FAILED));
 
-            assertThatThrownBy(() -> paymentService.pay(request))
+            assertThatThrownBy(() -> paymentServiceImpl.pay(request))
                     .isInstanceOf(BusinessException.class)
                     .extracting(e -> ((BusinessException) e).getErrorCode())
                     .isEqualTo(PaymentErrorCode.PG_REQUEST_FAILED);
@@ -165,7 +164,7 @@ class PaymentServiceTest {
             when(approveResult.success()).thenReturn(true);
             when(pgClient.approve(any())).thenReturn(approveResult);
 
-            ConfirmPaymentResponse response = paymentService.confirm(1L, new ConfirmPaymentRequest("PG_KEY_123"));
+            ConfirmPaymentResponse response = paymentServiceImpl.confirm(1L, new ConfirmPaymentRequest("PG_KEY_123"));
 
             assertThat(payment.getPaymentStatus()).isEqualTo(PaymentStatus.PAID);
             assertThat(response).isNotNull();
@@ -180,7 +179,7 @@ class PaymentServiceTest {
             when(approveResult.success()).thenReturn(false);
             when(pgClient.approve(any())).thenReturn(approveResult);
 
-            paymentService.confirm(1L, new ConfirmPaymentRequest("PG_KEY_123"));
+            paymentServiceImpl.confirm(1L, new ConfirmPaymentRequest("PG_KEY_123"));
 
             assertThat(payment.getPaymentStatus()).isEqualTo(PaymentStatus.FAILED);
 
@@ -191,7 +190,7 @@ class PaymentServiceTest {
         void confirmPaymentNotFound() {
             when(paymentRepository.findById(1L)).thenReturn(Optional.empty());
 
-            assertThatThrownBy(() -> paymentService.confirm(1L, new ConfirmPaymentRequest("PG_KEY_123")))
+            assertThatThrownBy(() -> paymentServiceImpl.confirm(1L, new ConfirmPaymentRequest("PG_KEY_123")))
                     .isInstanceOf(BusinessException.class)
                     .extracting(e -> ((BusinessException) e).getErrorCode())
                     .isEqualTo(PaymentErrorCode.PAYMENT_NOT_FOUND);
@@ -204,7 +203,7 @@ class PaymentServiceTest {
         @DisplayName("transactionKey가 일치하지 않으면 예외가 발생한다.")
         void confirmKeyMismatch() {
             when(paymentRepository.findById(1L)).thenReturn(Optional.of(payment));
-            assertThatThrownBy(() -> paymentService.confirm(1L, new ConfirmPaymentRequest("WRONG_KEY")))
+            assertThatThrownBy(() -> paymentServiceImpl.confirm(1L, new ConfirmPaymentRequest("WRONG_KEY")))
                     .isInstanceOf(BusinessException.class)
                     .extracting(e -> ((BusinessException) e).getErrorCode())
                     .isEqualTo(PaymentErrorCode.PAYMENT_KEY_MISMATCH);
@@ -219,7 +218,7 @@ class PaymentServiceTest {
 
             when(paymentRepository.findById(1L)).thenReturn(Optional.of(payment));
 
-            assertThatThrownBy(() -> paymentService.confirm(1L, new ConfirmPaymentRequest("PG_KEY_123")))
+            assertThatThrownBy(() -> paymentServiceImpl.confirm(1L, new ConfirmPaymentRequest("PG_KEY_123")))
                     .isInstanceOf(BusinessException.class)
                     .extracting(e -> ((BusinessException) e).getErrorCode())
                     .isEqualTo(PaymentErrorCode.INVALID_PAYMENT_STATUS);
@@ -233,7 +232,7 @@ class PaymentServiceTest {
             when(paymentRepository.findById(1L)).thenReturn(Optional.of(payment));
             when(pgClient.approve(any())).thenThrow(new BusinessException(PaymentErrorCode.PG_REQUEST_FAILED));
 
-            assertThatThrownBy(() -> paymentService.confirm(1L, new ConfirmPaymentRequest("PG_KEY_123")))
+            assertThatThrownBy(() -> paymentServiceImpl.confirm(1L, new ConfirmPaymentRequest("PG_KEY_123")))
                     .isInstanceOf(BusinessException.class)
                     .extracting(e -> ((BusinessException) e).getErrorCode())
                     .isEqualTo(PaymentErrorCode.PG_REQUEST_FAILED);
@@ -259,7 +258,7 @@ class PaymentServiceTest {
         void failSuccess() {
             when(paymentRepository.findById(1L)).thenReturn(Optional.of(payment));
 
-            FailPaymentResponse response = paymentService.fail(1L, new FailPaymentRequest("고객 요청"));
+            FailPaymentResponse response = paymentServiceImpl.fail(1L, new FailPaymentRequest("고객 요청"));
 
             assertThat(payment.getPaymentStatus()).isEqualTo(PaymentStatus.FAILED);
             assertThat(response).isNotNull();
@@ -271,7 +270,7 @@ class PaymentServiceTest {
         void failPaymentNotFound() {
             when(paymentRepository.findById(1L)).thenReturn(Optional.empty());
 
-            assertThatThrownBy(() -> paymentService.fail(1L, new FailPaymentRequest("고객 요청")))
+            assertThatThrownBy(() -> paymentServiceImpl.fail(1L, new FailPaymentRequest("고객 요청")))
                     .isInstanceOf(BusinessException.class)
                     .extracting(e -> ((BusinessException) e).getErrorCode())
                     .isEqualTo(PaymentErrorCode.PAYMENT_NOT_FOUND);
@@ -286,7 +285,7 @@ class PaymentServiceTest {
 
             when(paymentRepository.findById(1L)).thenReturn(Optional.of(payment));
 
-            assertThatThrownBy(() -> paymentService.fail(1L, new FailPaymentRequest("고객 요청")))
+            assertThatThrownBy(() -> paymentServiceImpl.fail(1L, new FailPaymentRequest("고객 요청")))
                     .isInstanceOf(BusinessException.class)
                     .extracting(e -> ((BusinessException) e).getErrorCode())
                     .isEqualTo(PaymentErrorCode.INVALID_PAYMENT_STATUS);
@@ -301,7 +300,7 @@ class PaymentServiceTest {
 
             when(paymentRepository.findById(1L)).thenReturn(Optional.of(payment));
 
-            FailPaymentResponse response = paymentService.fail(1L, new FailPaymentRequest("고객 요청"));
+            FailPaymentResponse response = paymentServiceImpl.fail(1L, new FailPaymentRequest("고객 요청"));
 
             assertThat(payment.getPaymentStatus()).isEqualTo(PaymentStatus.FAILED);
             assertThat(response).isNotNull();
@@ -316,7 +315,7 @@ class PaymentServiceTest {
             when(paymentRepository.findById(1L)).thenReturn(Optional.of(payment));
             doThrow(new BusinessException(PaymentErrorCode.PG_REQUEST_FAILED)).when(pgClient).cancel(any());
 
-            assertThatThrownBy(() -> paymentService.fail(1L, new FailPaymentRequest("PG사 취소 요청")))
+            assertThatThrownBy(() -> paymentServiceImpl.fail(1L, new FailPaymentRequest("PG사 취소 요청")))
                     .isInstanceOf(BusinessException.class)
                     .extracting(e -> ((BusinessException) e).getErrorCode())
                     .isEqualTo(PaymentErrorCode.PG_REQUEST_FAILED);
@@ -336,7 +335,7 @@ class PaymentServiceTest {
 
                 when(paymentRepository.findByUserId(100L, pageable)).thenReturn(paymentPage);
 
-                Page<GetPaymentHistoryResponse> result = paymentService.getPaymentHistory(100L, pageable);
+                Page<GetPaymentHistoryResponse> result = paymentServiceImpl.getPaymentHistory(100L, pageable);
 
                 assertThat(result.getTotalElements()).isEqualTo(2);
                 assertThat(result.getContent()).hasSize(2);
@@ -351,10 +350,19 @@ class PaymentServiceTest {
 
             when(paymentRepository.findByUserId(100L, pageable)).thenReturn(emptyPage);
 
-            Page<GetPaymentHistoryResponse> result = paymentService.getPaymentHistory(100L, pageable);
+            Page<GetPaymentHistoryResponse> result = paymentServiceImpl.getPaymentHistory(100L, pageable);
 
             assertThat(result.getContent()).isEmpty();
             assertThat(result.getTotalElements()).isZero();
+        }
+
+        @Nested
+        @DisplayName("부분 환불")
+        class PartialRefund {
+
+            @Test
+            @DisplayName("충돌시 충돌 예외 발생")
+
         }
     }
 }
