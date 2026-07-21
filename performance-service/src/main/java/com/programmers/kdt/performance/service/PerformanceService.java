@@ -6,6 +6,8 @@ import com.programmers.kdt.common.exception.BusinessException;
 import com.programmers.kdt.performance.entity.Performance;
 import com.programmers.kdt.performance.exception.PerformanceErrorCode;
 import com.programmers.kdt.performance.repository.PerformanceRepository;
+import com.programmers.kdt.performance.repository.PerformanceSeatPriceRepository;
+import com.programmers.kdt.performance.repository.PerformanceSessionRepository;
 import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -15,6 +17,8 @@ import org.springframework.stereotype.Service;
 public class PerformanceService {
 
     private final PerformanceRepository performanceRepository;
+    private final PerformanceSessionRepository performanceSessionRepository;
+    private final PerformanceSeatPriceRepository performanceSeatPriceRepository;
 
     @Transactional
     public PerformanceResponse registerPerformance(PerformanceRequest request, Long sellerId) {
@@ -46,6 +50,16 @@ public class PerformanceService {
                 request.ticketOpenAt(),
                 request.hallId());
         return new PerformanceResponse(performance.getPerformanceId(), performance.getTitle());
+    }
+
+    @Transactional
+    public void deletePerformance(Long performanceId, Long sellerId) {
+        Performance performance = getPerformance(performanceId);
+        validateOwner(performance, sellerId);
+        performanceSeatPriceRepository.deleteByPerformance_PerformanceId(performanceId);
+        performanceSessionRepository.deleteByPerformanceSessionId_PerformanceId(performanceId);
+        performanceRepository.delete(performance);
+        // TODO: order-service에 판매/주문 존재 확인 또는 취소 이벤트 발행에 대해서는 논의사항(어느정도의갚아를가져갈지)
     }
 
     private Performance getPerformance(Long id) {

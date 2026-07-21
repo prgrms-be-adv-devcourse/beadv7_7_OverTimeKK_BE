@@ -39,4 +39,12 @@ public class PerformanceController {
     public void cancel(@PathVariable Long performanceId) {
         performanceService.cancelPerformance(performanceId);
     }
+
+    @DeleteMapping("/{performanceId}")
+    public ResponseEntity<Void> deletePerformance(
+            @PathVariable Long performanceId,
+            @RequestHeader("X-User-Id") Long sellerId) {
+        performanceService.deletePerformance(performanceId, sellerId);
+        return ResponseEntity.noContent().build();
+    }
 }
