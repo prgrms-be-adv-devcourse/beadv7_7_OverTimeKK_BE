@@ -7,6 +7,7 @@ import com.programmers.kdt.order.repository.OrderRepository;
 import com.programmers.kdt.payment.client.*;
 import com.programmers.kdt.payment.dto.*;
 import com.programmers.kdt.payment.entity.Payment;
+import com.programmers.kdt.payment.entity.PaymentRefund;
 import com.programmers.kdt.payment.entity.PaymentStatus;
 import com.programmers.kdt.payment.exception.PaymentErrorCode;
 import com.programmers.kdt.payment.repository.PaymentRefundRepository;
@@ -24,7 +25,7 @@ public class PaymentService {
 
     private final PaymentRepository paymentRepository;
     private final OrderRepository orderRepository;
-    private final PaymentRefundRepository refundRepository;
+    private final PaymentRefundRepository paymentRefundRepository;
     private final PgClient pgClient;
 
     // 결제 생성
@@ -129,6 +130,7 @@ public class PaymentService {
             throw new BusinessException(PaymentErrorCode.PG_REQUEST_FAILED); // 예외 → 롤백 → DB 상태 원복
         }
 
+        paymentRefundRepository.save(PaymentRefund.create(payment.getId(), refundAmount, request.reason()));
         return CancelPaymentResponse.from(payment);
 
     }
@@ -152,6 +154,8 @@ public class PaymentService {
             throw new BusinessException(PaymentErrorCode.PG_REQUEST_FAILED); // 예외 → 롤백 → DB 상태 원복
         }
 
+        paymentRefundRepository.save(PaymentRefund.create(payment.getId(), request.amount(), request.reason()));
+
         return PartialCancelPaymentResponse.from(payment);
     }
 
@@ -162,7 +166,7 @@ public class PaymentService {
             throw new BusinessException(PaymentErrorCode.PAYMENT_NOT_FOUND);
         }
 
-        return refundRepository.findByPaymentId(paymentId, pageable)
+        return paymentRefundRepository.findByPaymentId(paymentId, pageable)
                 .map(GetPaymentRefundHistoryResponse::from);
     }
 
