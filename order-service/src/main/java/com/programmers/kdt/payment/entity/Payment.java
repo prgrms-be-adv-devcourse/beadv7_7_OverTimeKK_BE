@@ -91,18 +91,18 @@ public class Payment extends BaseTimeEntity {
     }
 
     // 전액 취소 메서드 PAID -> CANCELLED
-    public void cancel() {
+    public void refund() {
         if (paymentStatus == PaymentStatus.CANCELLED) {
             return; // 이미 취소 완료된 상태, 중복 이벤트 무시
         }
         if (isPaidOrPartialCancelled()) {
             throw new BusinessException(PaymentErrorCode.INVALID_PAYMENT_STATUS, this.paymentStatus);
         }
-        partialCancel(amount - refundedAmount); // 부분환불에 로직 위임 -> refundedAmount 부분환불 로직에서만 변경
+        partialRefund(amount - refundedAmount); // 부분환불에 로직 위임 -> refundedAmount 부분환불 로직에서만 변경
     }
 
     // 부분 취소 메서드 PAID OR PARTIAL_CANCELLED -> PARTIAL_CANCELLED
-    public void partialCancel(Long cancelAmount) {
+    public void partialRefund(Long cancelAmount) {
         if (isPaidOrPartialCancelled()) {
             throw new BusinessException(PaymentErrorCode.INVALID_PAYMENT_STATUS, this.paymentStatus);
         }

@@ -121,13 +121,19 @@ public class PaymentServiceImpl implements PaymentService{
 
     // 전액 환불
     @Transactional
-    public CancelPaymentResponse cancel(Long paymentId, CancelPaymentRequest request) {
+    public RefundPaymentResponse refund(Long paymentId, RefundPaymentRequest request) {
         Payment payment = getPayment(paymentId);
 
         // 환불금 계산
         Long refundAmount = payment.getAmount() - payment.getRefundedAmount();
 
-        payment.cancel();
+        try {
+            payment.refund();
+            paymentRepository.saveAndFlush(payment);
+        } catch(ObjectOptimisticLockingFailureException e) {
+            throw new BusinessException(PaymentErrorCode.PAYMENT_CONCURRENT_MODIFICATION);
+        }
+
 
         try {
             pgClient.cancel(new PgCancelCommand(payment.getPaymentKey(), refundAmount, request.reason()));
@@ -136,16 +142,16 @@ public class PaymentServiceImpl implements PaymentService{
         }
 
         paymentRefundRepository.save(PaymentRefund.create(payment.getId(), refundAmount, request.reason()));
-        return CancelPaymentResponse.from(payment);
+        return RefundPaymentResponse.from(payment);
     }
 
     // 부분 환불
     @Transactional
-    public PartialCancelPaymentResponse partialCancel(Long paymentId, PartialCancelPaymentRequest request) {
+    public PartialRefundPaymentResponse partialRefund(Long paymentId, PartialRefundPaymentRequest request) {
         Payment payment = getPayment(paymentId);
 
         try {
-            payment.partialCancel(request.amount());
+            payment.partialRefund(request.amount());
             paymentRepository.saveAndFlush(payment); // 미리 flush를 통해 버전이 일치하는지 검증
         } catch (ObjectOptimisticLockingFailureException e) { // 충돌 발생 시
             throw new BusinessException(PaymentErrorCode.PAYMENT_CONCURRENT_MODIFICATION);
@@ -159,7 +165,7 @@ public class PaymentServiceImpl implements PaymentService{
 
         paymentRefundRepository.save(PaymentRefund.create(payment.getId(), request.amount(), request.reason()));
 
-        return PartialCancelPaymentResponse.from(payment);
+        return PartialRefundPaymentResponse.from(payment);
     }
 
     // 환불 내역 조회

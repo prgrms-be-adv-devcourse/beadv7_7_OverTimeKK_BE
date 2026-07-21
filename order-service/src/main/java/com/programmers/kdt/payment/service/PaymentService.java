@@ -19,10 +19,10 @@ public interface PaymentService {
     Page<GetPaymentHistoryResponse> getPaymentHistory(Long userId, Pageable pageable);
 
     // 전액 환불
-    CancelPaymentResponse cancel(Long paymentId, CancelPaymentRequest request);
+    RefundPaymentResponse refund(Long paymentId, RefundPaymentRequest request);
 
     // 부분 환불
-    PartialCancelPaymentResponse partialCancel(Long paymentId, PartialCancelPaymentRequest request);
+    PartialRefundPaymentResponse partialRefund(Long paymentId, PartialRefundPaymentRequest request);
 
     // 환불 내역 조회
     Page<GetPaymentRefundHistoryResponse> getRefundHistory (Long paymentId, Pageable pageable);
