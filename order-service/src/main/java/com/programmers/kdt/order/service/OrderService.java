@@ -18,6 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 
@@ -54,9 +55,16 @@ public class OrderService {
 
     // 주문 만료
     @Transactional
-    public void expireOrder(Long orderId){
-        Order order = findOrder(orderId);
-        order.expire();
+    public void expireOrders(){
+        LocalDateTime cutoff = LocalDateTime.now().minusMinutes(10);
+
+        List<Order> orders = orderRepository.findAllByOrderStatusAndCreatedAtLessThanEqual(
+                OrderStatus.PENDING,
+                cutoff
+        );
+        for(Order order : orders){
+            order.expire();
+        }
     }
 
     // 주문 취소
