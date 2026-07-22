@@ -184,6 +184,7 @@ class PaymentServiceImplTest {
             ConfirmPaymentResponse response = paymentService.confirm(1L, new ConfirmPaymentRequest("PG_KEY_123"));
 
             assertThat(payment.getPaymentStatus()).isEqualTo(PaymentStatus.PAID);
+            assertThat(payment.getPaymentKey()).isEqualTo("PG_KEY_123");
             assertThat(response).isNotNull();
         }
 
