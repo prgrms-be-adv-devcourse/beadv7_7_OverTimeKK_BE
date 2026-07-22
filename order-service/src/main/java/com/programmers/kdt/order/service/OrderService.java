@@ -8,10 +8,12 @@ import com.programmers.kdt.order.dto.*;
 import com.programmers.kdt.order.entity.Order;
 import com.programmers.kdt.order.entity.OrderItem;
 import com.programmers.kdt.order.entity.OrderStatus;
+import com.programmers.kdt.order.event.OrderCancelledEvent;
 import com.programmers.kdt.order.exception.OrderErrorCode;
 import com.programmers.kdt.order.repository.OrderRepository;
 import com.programmers.kdt.payment.dto.CancelPaymentRequest;
 import com.programmers.kdt.payment.service.PaymentService;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -25,6 +27,7 @@ public class OrderService {
     private final OrderRepository orderRepository;
     private final TicketClient ticketClient;
     private final PaymentService paymentService;
+    private final ApplicationEventPublisher eventPublisher;
 
     // 주문 요청
     @Transactional
@@ -43,13 +46,15 @@ public class OrderService {
     }
 
     // 주문 완료
+    @Transactional
     public void completeOrder(Long orderId){
         Order order = findOrder(orderId);
         order.complete();
     }
 
     // 주문 만료
-    public void expiredOrder(Long orderId){
+    @Transactional
+    public void expireOrder(Long orderId){
         Order order = findOrder(orderId);
         order.expire();
     }
@@ -70,8 +75,13 @@ public class OrderService {
         // 결제 취소 성공 -> 주문 취소 완료
         order.cancel();
 
-        // 좌석 점유 해제 요청
-        ticketClient.releaseSeat(order.getTicketId(), order.getUserId());
+        // 좌석 점유 해제 이벤트 발행
+        eventPublisher.publishEvent(
+                new OrderCancelledEvent(
+                        orderId,
+                        order.getTicketId(),
+                        1L) // *** 추후 수정
+        );
 
         return CancelOrderResponse.from(order);
     }
