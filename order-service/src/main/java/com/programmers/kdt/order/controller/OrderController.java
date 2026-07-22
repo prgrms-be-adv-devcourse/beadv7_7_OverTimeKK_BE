@@ -1,7 +1,7 @@
 package com.programmers.kdt.order.controller;
 
-import com.programmers.kdt.order.dto.CreateOrderRequest;
-import com.programmers.kdt.order.dto.CreateOrderResponse;
+import com.programmers.kdt.common.response.ApiResponse;
+import com.programmers.kdt.order.dto.*;
 import com.programmers.kdt.order.service.OrderService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -18,13 +18,17 @@ public class OrderController {
     // 주문 요청
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public CreateOrderResponse create(@Valid @RequestBody CreateOrderRequest request) {
-        return orderService.createOrder(request);
+    public ApiResponse<CreateOrderResponse> create(@Valid @RequestBody CreateOrderRequest request) {
+        CreateOrderResponse response = orderService.createOrder(request);
+        return ApiResponse.success(response);
     }
 
     // 주문 취소
     @PostMapping("/{orderId}/cancel")
-    public void cancel(@PathVariable Long orderId) {
-        orderService.cancelOrder(orderId);
+    public ApiResponse<CancelOrderResponse> cancel(
+            @PathVariable Long orderId,
+            @RequestBody CancelOrderRequest request) {
+        CancelOrderResponse response = orderService.cancelOrder(orderId, request);
+        return ApiResponse.success(response);
     }
 }

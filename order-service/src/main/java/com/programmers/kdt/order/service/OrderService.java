@@ -3,12 +3,17 @@ package com.programmers.kdt.order.service;
 import com.programmers.kdt.common.exception.BusinessException;
 import com.programmers.kdt.order.client.TicketClient;
 import com.programmers.kdt.order.client.TicketHoldResult;
+import com.programmers.kdt.order.dto.CancelOrderRequest;
+import com.programmers.kdt.order.dto.CancelOrderResponse;
 import com.programmers.kdt.order.dto.CreateOrderRequest;
 import com.programmers.kdt.order.dto.CreateOrderResponse;
 import com.programmers.kdt.order.entity.Order;
 import com.programmers.kdt.order.entity.OrderItem;
+import com.programmers.kdt.order.entity.OrderStatus;
 import com.programmers.kdt.order.exception.OrderErrorCode;
 import com.programmers.kdt.order.repository.OrderRepository;
+import com.programmers.kdt.payment.dto.CancelPaymentRequest;
+import com.programmers.kdt.payment.service.PaymentService;
 import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -21,6 +26,7 @@ import java.util.List;
 public class OrderService {
     private final OrderRepository orderRepository;
     private final TicketClient ticketClient;
+    private final PaymentService paymentService;
 
     // 주문 요청
     @Transactional
@@ -52,17 +58,24 @@ public class OrderService {
 
     // 주문 취소
     @Transactional
-    public void cancelOrder(Long orderId) {
-        // 1. 주문  조회
+    public CancelOrderResponse cancelOrder(Long orderId, CancelOrderRequest request) {
         Order order = findOrder(orderId);
 
-        // 2. 결제 취소
-        // paymentService.cancel(orderId);
-        // 3. 주문 취소
+        // 취소 가능한 주문인지 검증
+        order.validateCancel();
+
+        // 결제 취소
+        paymentService.cancel(
+                order.getOrderId(),
+                new CancelPaymentRequest(request.reason())); // paymentService의 cancel메서드 파라미터 :orderId로 변경
+
+        // 결제 취소 성공 -> 주문 취소 완료
         order.cancel();
 
-        // 4. 5분 뒤, 좌석 점유 해제 예약
-        // ticketServcie.scheduleRelease(ticketId); -> userId도 함께 보내줘야 되는지
+        // 좌석 점유 해제 요청
+        ticketClient.releaseSeat(order.getTicketId(), order.getUserId());
+
+        return CancelOrderResponse.from(order);
     }
 
     private Order findOrder(Long orderId){
@@ -70,4 +83,5 @@ public class OrderService {
                 .orElseThrow(()->
                         new BusinessException(OrderErrorCode.ORDER_NOT_FOUND));
     }
+
 }
