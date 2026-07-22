@@ -4,6 +4,7 @@ import com.programmers.kdt.common.exception.BusinessException;
 import com.programmers.kdt.order.entity.Order;
 import com.programmers.kdt.order.repository.OrderRepository;
 import com.programmers.kdt.payment.client.pg.*;
+import com.programmers.kdt.payment.client.pg.PgOrderIdFormatter;
 import com.programmers.kdt.payment.client.refund.*;
 import com.programmers.kdt.payment.dto.*;
 import com.programmers.kdt.payment.entity.Payment;
@@ -67,8 +68,6 @@ public class PaymentServiceImpl implements PaymentService{
             throw new BusinessException(PaymentErrorCode.PG_REQUEST_FAILED);
         }
 
-        // PG사 키 할당
-        payment.assignPaymentKey(readyResult.transactionKey());
         paymentRepository.save(payment);
 
         return CreatePaymentResponse.of(payment, readyResult);
@@ -79,19 +78,19 @@ public class PaymentServiceImpl implements PaymentService{
     public ConfirmPaymentResponse confirm(Long paymentId, ConfirmPaymentRequest request) {
         Payment payment = getPayment(paymentId);
 
-        // 요청한 결제와 다른 결제일 경우
-        if (!payment.getPaymentKey().equals(request.transactionKey())) {
-            throw new BusinessException(PaymentErrorCode.PAYMENT_KEY_MISMATCH);
-        }
-
         // 상태 검증
         if (payment.getPaymentStatus() != PaymentStatus.READY) {
             throw new BusinessException(PaymentErrorCode.INVALID_PAYMENT_STATUS, payment.getPaymentStatus());
         }
 
+        payment.assignPaymentKey(request.transactionKey());
+
         PgApproveResult approveResult;
         try {
-            approveResult = pgClient.approve(new PgApproveCommand(payment.getPaymentKey(), payment.getAmount()));
+            approveResult = pgClient.approve(new PgApproveCommand(
+                    payment.getPaymentKey(),
+                    PgOrderIdFormatter.format(payment.getOrderId()),
+                    payment.getAmount()));
         } catch (Exception e) {
             throw new BusinessException(PaymentErrorCode.PG_REQUEST_FAILED);
         }
