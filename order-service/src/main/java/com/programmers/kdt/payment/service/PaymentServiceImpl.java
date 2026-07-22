@@ -64,7 +64,11 @@ public class PaymentServiceImpl implements PaymentService{
         PgReadyResult readyResult;
         try {
             readyResult = pgClient.ready(new PgReadyCommand(request.orderId(), request.amount()));
+        } catch (PgClientException e) {
+            log.error("토스 결제 준비 실패 - orderId={}, pgCode={}, pgMessage={}", request.orderId(), e.getPgErrorCode(), e.getMessage());
+            throw new BusinessException(PaymentErrorCode.PG_REQUEST_FAILED);
         } catch (Exception e) {
+            log.error("PG 요청 중 알 수 없는 오류 - orderId={}", request.orderId(), e);
             throw new BusinessException(PaymentErrorCode.PG_REQUEST_FAILED);
         }
 
@@ -91,7 +95,11 @@ public class PaymentServiceImpl implements PaymentService{
                     payment.getPaymentKey(),
                     PgOrderIdFormatter.format(payment.getOrderId()),
                     payment.getAmount()));
+        } catch (PgClientException e) {
+            log.error("토스 결제 승인 실패 - paymentId={}, pgCode={}, pgMessage={}", paymentId, e.getPgErrorCode(), e.getMessage());
+            throw new BusinessException(PaymentErrorCode.PG_REQUEST_FAILED);
         } catch (Exception e) {
+            log.error("PG 요청 중 알 수 없는 오류 - paymentId={}", paymentId, e);
             throw new BusinessException(PaymentErrorCode.PG_REQUEST_FAILED);
         }
 
@@ -116,7 +124,11 @@ public class PaymentServiceImpl implements PaymentService{
         if (!alreadyFailed && payment.getPaymentKey() != null) {
             try {
                 pgClient.cancel(new PgCancelCommand(payment.getPaymentKey(), payment.getAmount(), request.reason()));
+            } catch (PgClientException e) {
+                log.error("토스 결제 취소 실패 - paymentId={}, pgCode={}, pgMessage={}", paymentId, e.getPgErrorCode(), e.getMessage());
+                throw new BusinessException(PaymentErrorCode.PG_REQUEST_FAILED);
             } catch (Exception e) {
+                log.error("PG 요청 중 알 수 없는 오류 - paymentId={}", paymentId, e);
                 throw new BusinessException(PaymentErrorCode.PG_REQUEST_FAILED);
             }
 
