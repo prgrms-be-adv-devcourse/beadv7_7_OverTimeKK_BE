@@ -32,16 +32,24 @@ public class User {
     @Enumerated(EnumType.STRING)
     private UserStatus status;
 
-    private User(String username, String email, String encodedPassword, Role userType) {
+    private User(String username, String email, String encodedPassword, Role userType,
+                  String businessName, String businessNumber) {
         this.username = username;
         this.email = email;
         this.password = encodedPassword;
         this.userType = userType;
+        this.businessName = businessName;
+        this.businessNumber = businessNumber;
         this.status = UserStatus.ACTIVE;
     }
 
     public static User signUpIndividual(String username, String email, String encodedPassword) {
-        return new User(username, email, encodedPassword, Role.INDIVIDUAL);
+        return new User(username, email, encodedPassword, Role.INDIVIDUAL, null, null);
+    }
+
+    public static User signUpBusiness(String username, String email, String encodedPassword,
+                                       String businessName, String businessNumber) {
+        return new User(username, email, encodedPassword, Role.BUSINESS, businessName, businessNumber);
     }
 
     // TODO: 비즈니스 메서드(withdraw)

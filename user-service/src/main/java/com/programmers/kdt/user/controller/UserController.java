@@ -1,6 +1,7 @@
 package com.programmers.kdt.user.controller;
 
 import com.programmers.kdt.common.response.ApiResponse;
+import com.programmers.kdt.user.dto.SignUpBusinessRequest;
 import com.programmers.kdt.user.dto.SignUpIndividualRequest;
 import com.programmers.kdt.user.dto.SignUpUserResponse;
 import com.programmers.kdt.user.service.UserService;
@@ -18,6 +19,11 @@ public class UserController {
     @PostMapping("/signup/individual")
     public ApiResponse<SignUpUserResponse> signUpIndividual(@Valid @RequestBody SignUpIndividualRequest request) {
         return ApiResponse.success(userService.signUpIndividual(request));
+    }
+
+    @PostMapping("/signup/business")
+    public ApiResponse<SignUpUserResponse> signUpBusiness(@Valid @RequestBody SignUpBusinessRequest request) {
+        return ApiResponse.success(userService.signUpBusiness(request));
     }
 
     /**
