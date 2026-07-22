@@ -1,6 +1,5 @@
 package com.programmers.kdt.order.client;
 
-import com.programmers.kdt.ticket.entity.Ticket;
 
 public interface TicketClient {
 
