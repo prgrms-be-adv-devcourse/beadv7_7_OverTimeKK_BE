@@ -168,7 +168,7 @@ public class PaymentServiceImpl implements PaymentService{
                 return;
             }
 
-            Long refundAmount = (long) (payment.getAmount() * refundRate);
+            Long refundAmount = RefundPolicy.calculateRefundAmount(payment.getAmount(), refundRate);
 
             PgCancelResult cancelResult = pgClient.cancel(
                     new PgCancelCommand(payment.getPaymentKey(), refundAmount, event.reason()));

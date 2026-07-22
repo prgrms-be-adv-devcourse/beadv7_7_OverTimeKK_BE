@@ -15,4 +15,10 @@ public class RefundPolicy {
         if (daysBefore == 1) return 0.1;
         return 0.0; // 당일 이후: 불가
     }
+
+    // 1원 단위는 반올림하여 10원 단위로 정리
+    public static Long calculateRefundAmount(Long amount, double refundRate) {
+        long raw = Math.round(amount * refundRate / 10.0) * 10L;
+        return raw;
+    }
 }

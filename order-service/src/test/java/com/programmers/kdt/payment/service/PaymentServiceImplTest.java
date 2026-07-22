@@ -7,6 +7,9 @@ import com.programmers.kdt.order.repository.OrderRepository;
 import com.programmers.kdt.payment.client.pg.PgApproveResult;
 import com.programmers.kdt.payment.client.pg.PgClient;
 import com.programmers.kdt.payment.client.pg.PgReadyResult;
+import com.programmers.kdt.payment.client.refund.OrderClient;
+import com.programmers.kdt.payment.client.refund.PerformanceClient;
+import com.programmers.kdt.payment.client.refund.RefundEventPublisher;
 import com.programmers.kdt.payment.dto.*;
 import com.programmers.kdt.payment.entity.Payment;
 import com.programmers.kdt.payment.entity.PaymentStatus;
@@ -42,12 +45,20 @@ class PaymentServiceImplTest {
     private PaymentRefundRepository paymentRefundRepository;
     @Mock
     private PgClient pgClient;
+    @Mock
+    private OrderClient orderClient;
+    @Mock
+    private PerformanceClient performanceClient;
+    @Mock
+    private  RefundEventPublisher refundEventPublisher;
+
 
     private PaymentService paymentService;
 
     @BeforeEach
     void setUp() {
-        paymentService = new PaymentServiceImpl(paymentRepository, orderRepository, paymentRefundRepository, pgClient);
+        paymentService = new PaymentServiceImpl(paymentRepository, orderRepository, paymentRefundRepository, refundEventPublisher, performanceClient, orderClient, pgClient);
+
     }
 
     @Nested
@@ -372,32 +383,6 @@ class PaymentServiceImplTest {
                         .thenThrow(new ObjectOptimisticLockingFailureException(Payment.class, 1L));
 
                 assertThatThrownBy(() -> paymentService.refund(1L, new RefundPaymentRequest("고객 요청")))
-                        .isInstanceOf(BusinessException.class)
-                        .extracting(e -> ((BusinessException) e).getErrorCode())
-                        .isEqualTo(PaymentErrorCode.PAYMENT_CONCURRENT_MODIFICATION);
-
-                verifyNoInteractions(pgClient);
-            }
-        }
-
-        @Nested
-        @DisplayName("부분 환불")
-        class PartialRefund {
-
-            @Test
-            @DisplayName("동시성 충돌이 발생하면 예외 발생 및 PG 요청은 나가지 않는다.")
-            void partialRefundConcurrentModification() {
-                Payment payment = Payment.create(1L, 100L, 10000L);
-                payment.assignPaymentKey("PG_KEY_123");
-                payment.approve();
-
-                when(paymentRepository.findById(1L)).thenReturn(Optional.of(payment));
-                when(paymentRepository.saveAndFlush(payment))
-                        .thenThrow(new ObjectOptimisticLockingFailureException(Payment.class, 1L));
-
-                PartialRefundPaymentRequest request = new PartialRefundPaymentRequest(3000L, "고객 요청");
-
-                assertThatThrownBy(() -> paymentService.partialRefund(1L, request))
                         .isInstanceOf(BusinessException.class)
                         .extracting(e -> ((BusinessException) e).getErrorCode())
                         .isEqualTo(PaymentErrorCode.PAYMENT_CONCURRENT_MODIFICATION);

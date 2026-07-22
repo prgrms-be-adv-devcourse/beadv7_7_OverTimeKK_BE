@@ -65,7 +65,7 @@ public class Payment extends BaseTimeEntity {
         if (paymentStatus == PaymentStatus.PAID) {
             return; // 이미 결제된 경우 중복 이벤트 무시
         }
-        if (isReady()) {
+        if (!isReady()) {
             throw new BusinessException(PaymentErrorCode.INVALID_PAYMENT_STATUS, this.paymentStatus);
         }
         this.paymentStatus = PaymentStatus.PAID;
@@ -84,7 +84,7 @@ public class Payment extends BaseTimeEntity {
         if (paymentStatus == PaymentStatus.FAILED) {
             return; // 이미 취소된 경우 중복 이벤트 무시
         }
-        if (isReady()) {
+        if (!isReady()) {
             throw new BusinessException(PaymentErrorCode.INVALID_PAYMENT_STATUS, this.paymentStatus);
         }
         this.paymentStatus = PaymentStatus.FAILED;
@@ -125,7 +125,7 @@ public class Payment extends BaseTimeEntity {
 
     // READY 상태인지 판별
     private boolean isReady() {
-        return paymentStatus != PaymentStatus.READY;
+        return paymentStatus == PaymentStatus.READY;
     }
 
 }
