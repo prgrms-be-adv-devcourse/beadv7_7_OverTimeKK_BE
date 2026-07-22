@@ -1,4 +1,4 @@
-package com.programmers.kdt.payment.entity;
+package com.programmers.kdt.payment.client.refund;
 
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;

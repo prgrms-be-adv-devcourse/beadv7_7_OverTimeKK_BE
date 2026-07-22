@@ -123,7 +123,6 @@ public class Payment extends BaseTimeEntity {
         this.paymentStatus = PaymentStatus.PAID; // 실패 시 원상복귀
     }
 
-
     // READY 상태인지 판별
     private boolean isReady() {
         return paymentStatus != PaymentStatus.READY;
