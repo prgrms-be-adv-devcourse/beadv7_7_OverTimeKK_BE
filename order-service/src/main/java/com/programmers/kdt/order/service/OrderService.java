@@ -3,10 +3,8 @@ package com.programmers.kdt.order.service;
 import com.programmers.kdt.common.exception.BusinessException;
 import com.programmers.kdt.order.client.TicketClient;
 import com.programmers.kdt.order.client.TicketHoldResult;
-import com.programmers.kdt.order.dto.CancelOrderRequest;
-import com.programmers.kdt.order.dto.CancelOrderResponse;
-import com.programmers.kdt.order.dto.CreateOrderRequest;
-import com.programmers.kdt.order.dto.CreateOrderResponse;
+import com.programmers.kdt.order.client.TicketInfo;
+import com.programmers.kdt.order.dto.*;
 import com.programmers.kdt.order.entity.Order;
 import com.programmers.kdt.order.entity.OrderItem;
 import com.programmers.kdt.order.entity.OrderStatus;
@@ -76,6 +74,21 @@ public class OrderService {
         ticketClient.releaseSeat(order.getTicketId(), order.getUserId());
 
         return CancelOrderResponse.from(order);
+    }
+
+    // 주문 내역 조회
+    @Transactional(readOnly = true)
+    public List<GetOrderHistoryResponse> getOrderHistory(Long userId){
+        List<Order> orderHistory = orderRepository.findByUserId(userId);
+
+        // 공연장 -> ticketId 조회해서 가져오기
+        return orderHistory.stream()
+                .map(order -> {
+                    Long ticketId = order.getTicketId();
+                    TicketInfo ticketInfo = ticketClient.getTicket(ticketId);
+                    return GetOrderHistoryResponse.from(order, ticketInfo);
+                })
+                .toList();
     }
 
     private Order findOrder(Long orderId){

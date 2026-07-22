@@ -8,6 +8,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/order")
 @RequiredArgsConstructor
@@ -30,5 +32,12 @@ public class OrderController {
             @RequestBody CancelOrderRequest request) {
         CancelOrderResponse response = orderService.cancelOrder(orderId, request);
         return ApiResponse.success(response);
+    }
+
+    // 주문 내역 조회
+    @GetMapping
+    public ApiResponse<List<GetOrderHistoryResponse>> getOrderHistory(@RequestParam Long userId){
+         List<GetOrderHistoryResponse> response = orderService.getOrderHistory(userId);
+         return ApiResponse.success(response);
     }
 }

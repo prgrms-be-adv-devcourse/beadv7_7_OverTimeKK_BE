@@ -1,9 +1,12 @@
 package com.programmers.kdt.order.client;
 
+import com.programmers.kdt.ticket.entity.Ticket;
+import com.programmers.kdt.ticket.repository.TicketRepository;
 import org.springframework.stereotype.Component;
 
 @Component
 public class MockTicketClient implements TicketClient {
+    TicketRepository ticketRepository;
     public TicketHoldResult holdSeat(Long ticketId, Long userId){
         return new TicketHoldResult(ticketId, 50_000L);
     }
@@ -11,5 +14,13 @@ public class MockTicketClient implements TicketClient {
     public void releaseSeat(Long ticketId, Long userId){
         System.out.println("좌석 점유 해제 요청 성공: ticketId= " + ticketId
                             + ", userId= " + userId);
+    }
+
+    public TicketInfo getTicket(Long ticketId){
+        return new TicketInfo(
+                ticketId,
+                "오페라의 유령",
+                "R"
+        );
     }
 }
