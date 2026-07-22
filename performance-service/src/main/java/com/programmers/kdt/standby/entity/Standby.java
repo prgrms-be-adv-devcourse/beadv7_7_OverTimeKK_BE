@@ -42,5 +42,7 @@ public class Standby extends BaseTimeEntity {
     @Enumerated(EnumType.STRING)
     private StandbyStatus standbyStatus;
 
+    private Long priority;
+
     private LocalDateTime reservedAt;
 }
