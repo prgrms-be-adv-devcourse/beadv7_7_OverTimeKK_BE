@@ -28,7 +28,7 @@ public class Performance extends BaseTimeEntity {
     private String description;
 
     @Column(nullable = false)
-    private String runtime;
+    private Long runtime;
 
     @Column(nullable = false)
     private LocalDate startDate;
@@ -47,7 +47,7 @@ public class Performance extends BaseTimeEntity {
     private Long hallId;
 
 
-    public static Performance createPerformance(String title, String description, String runtime,
+    public static Performance createPerformance(String title, String description, Long runtime,
                                      LocalDate startDate, LocalDate endDate, LocalDateTime ticketOpenAt,
                                      Long sellerId, Long hallId) {
         validatePerformance(startDate, endDate, ticketOpenAt);
@@ -65,7 +65,7 @@ public class Performance extends BaseTimeEntity {
 
     // TODO: 티켓 오픈(ticketOpenAt) 이후에는 판매자가 좌석가(PerformanceSeatPrice) 변경 불가.
     //  좌석가격 수정 로직 추후 추가 및 검증 필요
-    public void updatePerformance(String title, String description, String runtime,
+    public void updatePerformance(String title, String description, Long runtime,
                        LocalDate startDate, LocalDate endDate, LocalDateTime ticketOpenAt, Long hallId) {
         validatePerformance(startDate, endDate, ticketOpenAt);
         this.title = title;
