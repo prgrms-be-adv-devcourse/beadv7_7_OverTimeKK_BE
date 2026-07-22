@@ -32,19 +32,23 @@ public class User {
     @Enumerated(EnumType.STRING)
     private UserStatus status;
 
-    private User(String username, String email, String encodedPassword, Role userType,
-                  String businessName, String businessNumber) {
+    private User(String username, String email, String encodedPassword, Role userType) {
         this.username = username;
         this.email = email;
         this.password = encodedPassword;
         this.userType = userType;
-        this.businessName = businessName;
-        this.businessNumber = businessNumber;
         this.status = UserStatus.ACTIVE;
     }
 
+    private User(String username, String email, String encodedPassword, Role userType,
+                  String businessName, String businessNumber) {
+        this(username, email, encodedPassword, userType);
+        this.businessName = businessName;
+        this.businessNumber = businessNumber;
+    }
+
     public static User signUpIndividual(String username, String email, String encodedPassword) {
-        return new User(username, email, encodedPassword, Role.INDIVIDUAL, null, null);
+        return new User(username, email, encodedPassword, Role.INDIVIDUAL);
     }
 
     public static User signUpBusiness(String username, String email, String encodedPassword,
