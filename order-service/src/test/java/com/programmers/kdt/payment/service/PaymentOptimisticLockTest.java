@@ -28,7 +28,7 @@ public class PaymentOptimisticLockTest {
         Payment payment = Payment.create(1L, 100L, 10000L);
         payment.assignPaymentKey("PG_KEY_123");
         payment.approve();
-
+        payment.requestRefund();
         Long id = paymentRepository.saveAndFlush(payment).getId();
 
         entityManager.clear();

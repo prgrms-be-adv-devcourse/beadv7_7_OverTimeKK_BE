@@ -2,22 +2,24 @@ package com.programmers.kdt.payment.service;
 
 
 import com.programmers.kdt.common.exception.BusinessException;
+import com.programmers.kdt.common.exception.CommonErrorCode;
 import com.programmers.kdt.order.entity.Order;
 import com.programmers.kdt.order.repository.OrderRepository;
-import com.programmers.kdt.payment.client.pg.PgApproveResult;
-import com.programmers.kdt.payment.client.pg.PgClient;
-import com.programmers.kdt.payment.client.pg.PgReadyResult;
+import com.programmers.kdt.payment.client.pg.*;
 import com.programmers.kdt.payment.client.refund.OrderClient;
 import com.programmers.kdt.payment.client.refund.PerformanceClient;
 import com.programmers.kdt.payment.client.refund.RefundEventPublisher;
+import com.programmers.kdt.payment.client.refund.RefundRequestEvent;
 import com.programmers.kdt.payment.dto.*;
 import com.programmers.kdt.payment.entity.Payment;
+import com.programmers.kdt.payment.entity.PaymentRefund;
 import com.programmers.kdt.payment.entity.PaymentStatus;
 import com.programmers.kdt.payment.exception.PaymentErrorCode;
 import com.programmers.kdt.payment.repository.PaymentRefundRepository;
 import com.programmers.kdt.payment.repository.PaymentRepository;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -26,7 +28,10 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
+import org.springframework.test.util.ReflectionTestUtils;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -389,6 +394,112 @@ class PaymentServiceImplTest {
 
                 verifyNoInteractions(pgClient);
             }
+        }
+
+        @Nested
+        @DisplayName("환불 처리")
+        class onRefund {
+
+            @Test
+            @DisplayName("환불률이 0보다 크고 PG 취소가 성공하면 환불이 완료 처리된다.")
+            void refundSuccess() {
+                //given
+                Payment payment = Payment.create(1L, 100L, 10000L);
+                ReflectionTestUtils.setField(payment, "id", 1L);
+                payment.assignPaymentKey("PG_KEY_123");
+                payment.approve();
+                payment.requestRefund();
+
+                when(paymentRepository.findById(1L)).thenReturn(Optional.of(payment));
+                when(orderClient.getTicketId(1L)).thenReturn(10L);
+                when(performanceClient.getPerformanceDate(10L)).thenReturn(LocalDate.now().plusDays(4)); // refundRate 0.4
+                when(pgClient.cancel(any(PgCancelCommand.class)))
+                        .thenReturn(new PgCancelResult(true, LocalDateTime.now()));
+
+                //when
+                paymentService.onRefundRequested(new RefundRequestEvent(1L, "고객 요청", LocalDateTime.now()));
+
+                //then
+                assertThat(payment.getPaymentStatus()).isEqualTo(PaymentStatus.CANCELLED);
+                assertThat(payment.getRefundedAmount()).isEqualTo(4000L); // 10000 * 0.4
+
+                ArgumentCaptor<PgCancelCommand> commandCaptor = ArgumentCaptor.forClass(PgCancelCommand.class);
+                verify(pgClient).cancel(commandCaptor.capture());
+                assertThat(commandCaptor.getValue().cancelAmount()).isEqualTo(4000L);
+
+                ArgumentCaptor<PaymentRefund> refundCaptor = ArgumentCaptor.forClass(PaymentRefund.class);
+                verify(paymentRefundRepository).save(refundCaptor.capture());
+                assertThat(refundCaptor.getValue().getRefundAmount()).isEqualTo(4000L);
+
+            }
+        }
+
+        @Test
+        @DisplayName("환불율이 0이면(공연 당일 이후) PG 호출 없이 결제가 PAID로 롤백된다.")
+        void refundRateZero() {
+            //given
+            Payment payment = Payment.create(1L, 100L, 10000L);
+            ReflectionTestUtils.setField(payment, "id", 1L);
+            payment.assignPaymentKey("PG_KEY_123");
+            payment.approve();
+            payment.requestRefund();
+
+            when(paymentRepository.findById(1L)).thenReturn(Optional.of(payment));
+            when(orderClient.getTicketId(1L)).thenReturn(10L);
+            when(performanceClient.getPerformanceDate(10L)).thenReturn(LocalDate.now()); // 공연 당일 -> rate 0.0
+
+            //when
+            paymentService.onRefundRequested(new RefundRequestEvent(1L, "고객 요청", LocalDateTime.now()));
+
+            //then
+            assertThat(payment.getPaymentStatus()).isEqualTo(PaymentStatus.PAID);
+            verifyNoInteractions(pgClient);
+            verifyNoInteractions(paymentRefundRepository);
+        }
+
+        @Test
+        @DisplayName("PG 취소가 실패하면 결제가 전부 PAID로 롤백되고 환불 이력이 저장되지 않는다.")
+        void pgCancelFails() {
+            //given
+            Payment payment = Payment.create(1L, 100L, 10000L);
+            ReflectionTestUtils.setField(payment, "id", 1L);
+            payment.assignPaymentKey("PG_KEY_123");
+            payment.approve();
+            payment.requestRefund();
+
+            when(paymentRepository.findById(1L)).thenReturn(Optional.of(payment));
+            when(orderClient.getTicketId(1L)).thenReturn(10L);
+            when(performanceClient.getPerformanceDate(10L)).thenReturn(LocalDate.now().plusDays(6)); // rate 1.0
+            when(pgClient.cancel(any(PgCancelCommand.class)))
+                    .thenReturn(new PgCancelResult(false, null));
+
+            //when
+            paymentService.onRefundRequested(new RefundRequestEvent(1L, "고객 요청", LocalDateTime.now()));
+
+            //then
+            assertThat(payment.getPaymentStatus()).isEqualTo(PaymentStatus.PAID);
+            verifyNoInteractions(paymentRefundRepository); // return 누락 상태면 이 테스트가 실패함
+        }
+
+        @Test
+        @DisplayName("외부 조회 중 예외가 발생하면 결제가 PAID로 롤백된다.")
+        void externalCallThrows() {
+            //given
+            Payment payment = Payment.create(1L, 100L, 10000L);
+            payment.assignPaymentKey("PG_KEY_123");
+            payment.approve();
+            payment.requestRefund();
+
+            when(paymentRepository.findById(1L)).thenReturn(Optional.of(payment));
+            when(orderClient.getTicketId(1L)).thenThrow(new BusinessException(CommonErrorCode.NOT_FOUND));
+
+            //when
+            paymentService.onRefundRequested(new RefundRequestEvent(1L, "고객 요청", LocalDateTime.now()));
+
+            //then
+            assertThat(payment.getPaymentStatus()).isEqualTo(PaymentStatus.PAID);
+            verifyNoInteractions(pgClient);
+            verifyNoInteractions(paymentRefundRepository);
         }
     }
 }

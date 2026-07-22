@@ -177,6 +177,7 @@ public class PaymentServiceImpl implements PaymentService{
                 payment.failRefund();
                 paymentRepository.save(payment);
                 log.error("PG 취소 실패 - paymentId={}", payment.getId());
+                return;
             }
 
             paymentRefundRepository.save(PaymentRefund.create(payment.getId(), refundAmount, event.reason()));
