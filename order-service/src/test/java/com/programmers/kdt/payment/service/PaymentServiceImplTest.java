@@ -55,14 +55,15 @@ class PaymentServiceImplTest {
     @Mock
     private PerformanceClient performanceClient;
     @Mock
-    private  RefundEventPublisher refundEventPublisher;
-
+    private RefundEventPublisher refundEventPublisher;
 
     private PaymentService paymentService;
+    @Mock
+    private PointService pointService;
 
     @BeforeEach
     void setUp() {
-        paymentService = new PaymentServiceImpl(paymentRepository, orderRepository, paymentRefundRepository, refundEventPublisher, performanceClient, orderClient, pgClient);
+        paymentService = new PaymentServiceImpl(paymentRepository, orderRepository, paymentRefundRepository, refundEventPublisher, performanceClient, orderClient, pgClient, pointService);
 
     }
 
@@ -70,7 +71,7 @@ class PaymentServiceImplTest {
     @DisplayName("결제 생성")
     class Pay {
 
-        private final CreatePaymentRequest request = new CreatePaymentRequest(1L, 10000L);
+        private final CreatePaymentRequest request = new CreatePaymentRequest(1L, 10000L, 0L);
 
         @Test
         @DisplayName("정상 요청이면 결제가 생성된다.")

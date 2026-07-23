@@ -10,6 +10,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 @Slf4j
@@ -22,7 +23,6 @@ public class PointServiceImpl implements PointService {
 
 
     @Override
-    @Transactional
     public void usePoint(Long userId, Long amount, String eventId) {
         if (pointLogRepository.findByEventId(eventId).isPresent()) {
             log.warn("이미 처리된 포인트 사용 이벤트 - eventId:{}", eventId);
@@ -30,11 +30,11 @@ public class PointServiceImpl implements PointService {
         }
 
         Point point = pointRepository.findById(userId)
-                .orElseGet(() -> pointRepository.save(Point.create(userId))); // 포인트 사용에서 포인트 생성이 과연 맞는가?
+                .orElseGet(() -> (Point.create(userId))); // 포인트 사용에서 포인트 생성이 과연 맞는가?
 
         try {
             point.use(amount);
-            pointRepository.saveAndFlush(point); // 포인트 사용 방지
+            pointRepository.saveAndFlush(point); // 동시 차감으로 인한 잔액 불일치 방지
         } catch (ObjectOptimisticLockingFailureException e) {
             throw new BusinessException(PointErrorCode.POINT_CONCURRENT_MODIFICATION);
         }
@@ -51,7 +51,7 @@ public class PointServiceImpl implements PointService {
     }
 
     @Override
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void rollbackPoint(String originEventId, Long amount, String rollbackEventId, boolean isFullRollback) {
         if (amount == null || amount <= 0) {
             return;
@@ -66,7 +66,7 @@ public class PointServiceImpl implements PointService {
                 .orElseThrow(() -> new BusinessException(PointErrorCode.ORIGIN_POINT_LOG_NOT_FOUND, originEventId));
 
         Point point = pointRepository.findById(originLog.getUserId())
-                .orElseThrow(() -> new BusinessException(PointErrorCode.MISSING_USER_ID));
+                .orElseThrow(() -> new BusinessException(PointErrorCode.POINT_NOT_FOUND, originLog.getUserId()));
 
         try {
             point.rollbackUse(amount);
@@ -75,6 +75,6 @@ public class PointServiceImpl implements PointService {
             throw new BusinessException(PointErrorCode.POINT_CONCURRENT_MODIFICATION);
         }
 
-        pointLogRepository.save(PointLog.rollback(originLog, amount, rollbackEventId, isFullRollback))
+        pointLogRepository.save(PointLog.rollback(originLog, amount, rollbackEventId, isFullRollback));
     }
 }
