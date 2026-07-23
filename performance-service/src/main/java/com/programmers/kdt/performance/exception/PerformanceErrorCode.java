@@ -8,6 +8,7 @@ public enum PerformanceErrorCode implements ErrorCode {
     INVALID_TICKET_OPEN(HttpStatus.BAD_REQUEST, "PFM400_002", "티켓 오픈 시각은 공연 시작 전이어야 합니다."),
     PERFORMANCE_NOT_FOUND(HttpStatus.NOT_FOUND, "PFM404_001", "공연을 찾을 수 없습니다."),
     PERFORMANCE_SESSION_NOT_FOUND(HttpStatus.NOT_FOUND, "P404_002", "공연 회차 정보를 찾을 수 없습니다."),
+    SEAT_INFORMATION_NOT_FOUND(HttpStatus.NOT_FOUND, "P404_003", "{0} 홀에 대한 좌석 정보가 없습니다."),
     NOT_PERFORMANCE_OWNER(HttpStatus.FORBIDDEN, "PFM403_001", "해당 공연의 판매자가 아닙니다."),
     PERFORMANCE_SESSION_NOT_VALID(HttpStatus.UNPROCESSABLE_CONTENT, "P422_001", "공연 정보가 유효하지 않습니다."),
     PERFORMANCE_SESSION_INVALID_START_TIME(HttpStatus.UNPROCESSABLE_CONTENT, "P422_002", "공연 시작 시간은 현재보다 이후여야 합니다."),
