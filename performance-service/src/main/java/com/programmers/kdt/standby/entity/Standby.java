@@ -112,4 +112,25 @@ public class Standby extends BaseTimeEntity {
         }
         throw new IllegalStateException("매칭 대상 zone이 이 대기 신청의 지망 목록에 없습니다.");
     }
+
+    public void cancel() {
+        if (standbyStatus == StandbyStatus.CANCELLED) {
+            return;
+        }
+        if (standbyStatus != StandbyStatus.WAITING && standbyStatus != StandbyStatus.HELD) {
+            throw new BusinessException(StandbyErrorCode.CANNOT_CANCEL);
+        }
+        this.standbyStatus = StandbyStatus.CANCELLED;
+    }
+
+    public String getMatchedZone() {
+        if (slot == null) {
+            return null;
+        }
+        return switch (slot) {
+            case ZONE1 -> zone1;
+            case ZONE2 -> zone2;
+            case ZONE3 -> zone3;
+        };
+    }
 }

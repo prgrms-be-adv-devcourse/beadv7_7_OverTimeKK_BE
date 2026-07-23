@@ -7,7 +7,10 @@ public enum StandbyErrorCode implements ErrorCode{
     DUPLICATE_ZONE(HttpStatus.BAD_REQUEST, "STB400_002", "지망 구역은 중복될 수 없습니다."),
     INVALID_ZONE(HttpStatus.BAD_REQUEST, "STB400_003", "해당 공연에서 사용하지 않는 좌석 구역입니다."),
     ALREADY_APPLIED(HttpStatus.CONFLICT, "STB409_001", "이미 해당 회차에 대기 신청을 하셨습니다."),
-    ZONE_NOT_SOLD_OUT(HttpStatus.CONFLICT, "STB409_002", "아직 잔여 좌석이 있어 대기 신청할 수 없는 구역입니다.");
+    ZONE_NOT_SOLD_OUT(HttpStatus.CONFLICT, "STB409_002", "아직 잔여 좌석이 있어 대기 신청할 수 없는 구역입니다."),
+    CANNOT_CANCEL(HttpStatus.CONFLICT, "STB409_003", "취소할 수 없는 상태의 대기 신청입니다."),
+    STANDBY_NOT_FOUND(HttpStatus.NOT_FOUND, "STB404_001", "존재하지 않는 대기 신청입니다."),
+    NOT_STANDBY_OWNER(HttpStatus.FORBIDDEN, "STB403_001", "본인의 대기 신청만 취소할 수 있습니다.");
 
     private final HttpStatus httpStatus;
     private final String code;

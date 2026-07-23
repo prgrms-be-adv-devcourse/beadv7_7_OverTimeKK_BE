@@ -266,4 +266,85 @@ class StandbyServiceTest {
             assertThat(matchedId).isEmpty();
         }
     }
+
+    @Nested
+    @DisplayName("대기 취소(cancelStandby)")
+    class CancelStandby {
+
+        private static final Long STANDBY_ID = 1L;
+
+        @Test
+        @DisplayName("WAITING 상태의 본인 신청을 취소하면 cancel()만 호출되고, 재매칭은 시도하지 않는다.")
+        void cancelWaitingStandby() {
+            // given
+            Standby standby = mock(Standby.class);
+            given(standbyRepository.findById(STANDBY_ID)).willReturn(Optional.of(standby));
+            given(standby.getUserId()).willReturn(USER_ID);
+            given(standby.getStandbyStatus()).willReturn(StandbyStatus.WAITING);
+
+            // when
+            standbyService.cancelStandby(STANDBY_ID, USER_ID);
+
+            // then
+            verify(standby).cancel();
+            verify(standbyRepository, never())
+                    .findMatchCandidates(any(), any(), any(), any());
+        }
+
+        @Test
+        @DisplayName("HELD 상태의 본인 신청을 취소하면 cancel() 후, 매칭됐던 zone으로 다음 대기자에게 재매칭을 시도한다.")
+        void cancelHeldStandbyTriggersRematch() {
+            // given
+            Standby cancelled = mock(Standby.class);
+            given(standbyRepository.findById(STANDBY_ID)).willReturn(Optional.of(cancelled));
+            given(cancelled.getUserId()).willReturn(USER_ID);
+            given(cancelled.getStandbyStatus()).willReturn(StandbyStatus.HELD);
+            given(cancelled.getMatchedZone()).willReturn("A");
+            given(cancelled.getPerformanceSession()).willReturn(session);
+            given(standbyRepository.findMatchCandidates(
+                    eq(session), eq("A"), eq(StandbyStatus.WAITING), any(Pageable.class)))
+                    .willReturn(List.of());
+
+            // when
+            standbyService.cancelStandby(STANDBY_ID, USER_ID);
+
+            // then
+            verify(cancelled).cancel();
+            verify(standbyRepository).findMatchCandidates(
+                    eq(session), eq("A"), eq(StandbyStatus.WAITING), any(Pageable.class));
+        }
+
+        @Test
+        @DisplayName("존재하지 않는 standbyId면 STANDBY_NOT_FOUND 예외가 발생한다.")
+        void rejectWhenStandbyNotFound() {
+            // given
+            given(standbyRepository.findById(STANDBY_ID)).willReturn(Optional.empty());
+
+            // when & then
+            assertThatThrownBy(() -> standbyService.cancelStandby(STANDBY_ID, USER_ID))
+                    .isInstanceOfSatisfying(
+                            BusinessException.class,
+                            exception -> assertThat(exception.getErrorCode())
+                                    .isEqualTo(StandbyErrorCode.STANDBY_NOT_FOUND)
+                    );
+        }
+
+        @Test
+        @DisplayName("본인 신청이 아니면 NOT_STANDBY_OWNER 예외가 발생하고 취소되지 않는다.")
+        void rejectWhenNotOwner() {
+            // given - 신청자는 USER_ID인데, 다른 사람(999L)이 취소를 시도
+            Standby standby = mock(Standby.class);
+            given(standbyRepository.findById(STANDBY_ID)).willReturn(Optional.of(standby));
+            given(standby.getUserId()).willReturn(999L);
+
+            // when & then
+            assertThatThrownBy(() -> standbyService.cancelStandby(STANDBY_ID, USER_ID))
+                    .isInstanceOfSatisfying(
+                            BusinessException.class,
+                            exception -> assertThat(exception.getErrorCode())
+                                    .isEqualTo(StandbyErrorCode.NOT_STANDBY_OWNER)
+                    );
+            verify(standby, never()).cancel();
+        }
+    }
 }

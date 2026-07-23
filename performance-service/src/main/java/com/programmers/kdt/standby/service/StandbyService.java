@@ -64,7 +64,10 @@ public class StandbyService {
     // zone에 자리가 나면 호출. 해당 zone을 지망(zone1/zone2/zone3)한 WAITING 중 가장 먼저 신청한 사람을 HELD로 전환한다.
     public Optional<Long> tryMatch(Long performanceId, Long sessionNum, String zone) {
         PerformanceSession session = findSession(performanceId, sessionNum);
+        return matchNextCandidate(session, zone);
+    }
 
+    private Optional<Long> matchNextCandidate(PerformanceSession session, String zone) {
         List<Standby> candidates = standbyRepository
                 .findMatchCandidates(session, zone, StandbyStatus.WAITING, PageRequest.of(0, 1));
         if (candidates.isEmpty()) {
@@ -82,7 +85,25 @@ public class StandbyService {
                 .orElseThrow(() -> new BusinessException(PerformanceErrorCode.PERFORMANCE_SESSION_NOT_FOUND));
     }
 
-    //대기매칭 취소
+    // 본인의 WAITING/HELD 대기를 취소. HELD 상태였다면 취소 즉시 같은 zone의 다음 대기자에게 매칭을 넘긴다.
+    public void cancelStandby(Long standbyId, Long userId) {
+        Standby standby = standbyRepository.findById(standbyId)
+                .orElseThrow(() -> new BusinessException(StandbyErrorCode.STANDBY_NOT_FOUND));
+
+        if (!standby.getUserId().equals(userId)) {
+            throw new BusinessException(StandbyErrorCode.NOT_STANDBY_OWNER);
+        }
+
+        boolean wasHeld = standby.getStandbyStatus() == StandbyStatus.HELD;
+        String matchedZone = standby.getMatchedZone();
+        PerformanceSession session = standby.getPerformanceSession();
+
+        standby.cancel();
+
+        if (wasHeld) {
+            matchNextCandidate(session, matchedZone);
+        }
+    }
 
     //부분대기 취소
 

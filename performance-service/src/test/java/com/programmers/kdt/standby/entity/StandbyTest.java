@@ -11,6 +11,7 @@ import java.util.Arrays;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
 
@@ -152,6 +153,78 @@ public class StandbyTest {
             // when & then
             assertThatThrownBy(() -> standby.hold("Z"))
                     .isInstanceOf(IllegalStateException.class);
+        }
+    }
+
+    @Nested
+    @DisplayName("매칭 대상 zone 조회(getMatchedZone)")
+    class MatchedZone {
+
+        @Test
+        @DisplayName("매칭 전(WAITING)이면 null을 반환한다.")
+        void nullBeforeHold() {
+            // given
+            Standby standby = Standby.apply(1L, session, List.of("A", "B"));
+
+            // then
+            assertThat(standby.getMatchedZone()).isNull();
+        }
+
+        @Test
+        @DisplayName("zone3로 매칭됐으면 zone3 값을 반환한다.")
+        void returnsMatchedZoneValue() {
+            // given
+            Standby standby = Standby.apply(1L, session, List.of("A", "B", "C"));
+
+            // when
+            standby.hold("C");
+
+            // then
+            assertThat(standby.getMatchedZone()).isEqualTo("C");
+        }
+    }
+
+    @Nested
+    @DisplayName("대기 취소(cancel)")
+    class Cancel {
+
+        @Test
+        @DisplayName("WAITING 상태를 취소하면 CANCELLED로 바뀐다.")
+        void cancelFromWaiting() {
+            // given
+            Standby standby = Standby.apply(1L, session, List.of("A"));
+
+            // when
+            standby.cancel();
+
+            // then
+            assertThat(standby.getStandbyStatus()).isEqualTo(StandbyStatus.CANCELLED);
+        }
+
+        @Test
+        @DisplayName("HELD 상태(매칭된 상태)를 취소하면 CANCELLED로 바뀐다.")
+        void cancelFromHeld() {
+            // given
+            Standby standby = Standby.apply(1L, session, List.of("A"));
+            standby.hold("A");
+
+            // when
+            standby.cancel();
+
+            // then
+            assertThat(standby.getStandbyStatus()).isEqualTo(StandbyStatus.CANCELLED);
+        }
+
+        @Test
+        @DisplayName("이미 CANCELLED 상태면 다시 취소해도 예외 없이 CANCELLED를 유지(멱등).")
+        void cancelAlreadyCancelledIsIdempotent() {
+            // given
+            Standby standby = Standby.apply(1L, session, List.of("A"));
+            standby.cancel();
+
+            // when & then
+            assertThatCode(standby::cancel).doesNotThrowAnyException();
+            assertThat(standby.getStandbyStatus()).isEqualTo(StandbyStatus.CANCELLED);
         }
     }
 }
