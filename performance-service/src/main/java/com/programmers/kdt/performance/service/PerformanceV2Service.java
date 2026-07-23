@@ -12,6 +12,7 @@ import com.programmers.kdt.performance.repository.PerformanceSessionRepository;
 import com.programmers.kdt.ticket.entity.Ticket;
 import com.programmers.kdt.ticket.repository.TicketRepository;
 import com.programmers.kdt.venue.entity.Seat;
+import com.programmers.kdt.venue.exception.VenueException;
 import com.programmers.kdt.venue.repository.SeatRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -50,7 +51,7 @@ public class PerformanceV2Service {
 
             for (PerformanceSession session : sessions) {
                 if (seats.isEmpty()) {
-                    throw new BusinessException(PerformanceErrorCode.SEAT_INFORMATION_NOT_FOUND, performance.getHallId());
+                    throw new BusinessException(VenueException.SEAT_INFORMATION_NOT_FOUND, performance.getHallId());
                 }
 
                 for (Seat seat : seats) {

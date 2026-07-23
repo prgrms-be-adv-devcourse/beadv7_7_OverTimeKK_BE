@@ -9,7 +9,7 @@ public enum PerformanceStatus {
     CLOSED("공연 종료"),
     CANCELED("공연 취소");
 
-    private String message;
+    private final String message;
 
     PerformanceStatus(String message) {
         this.message = message;
