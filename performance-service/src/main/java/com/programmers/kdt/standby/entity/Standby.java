@@ -133,4 +133,41 @@ public class Standby extends BaseTimeEntity {
             case ZONE3 -> zone3;
         };
     }
+
+    // 지망 zone 중 하나만 취소. 매칭됐던(slot) zone을 취소하면 남은 zone에 대해 WAITING으로 되돌아간다.
+    // 남은 zone이 없으면(매칭 zone이었든 아니든) 전체 취소로 전환된다.
+    public void cancelZone(String zone) {
+        if (standbyStatus == StandbyStatus.CANCELLED) {
+            return;
+        }
+        if (standbyStatus != StandbyStatus.WAITING && standbyStatus != StandbyStatus.HELD) {
+            throw new BusinessException(StandbyErrorCode.CANNOT_CANCEL);
+        }
+
+        boolean wasMatchedZone = Objects.equals(zone, getMatchedZone());
+        removeZone(zone);
+
+        if (wasMatchedZone) {
+            this.slot = null;
+            this.heldAt = null;
+        }
+
+        if (zone1 == null && zone2 == null && zone3 == null) {
+            this.standbyStatus = StandbyStatus.CANCELLED;
+        } else if (wasMatchedZone) {
+            this.standbyStatus = StandbyStatus.WAITING;
+        }
+    }
+
+    private void removeZone(String zone) {
+        if (Objects.equals(zone, zone1)) {
+            zone1 = null;
+        } else if (Objects.equals(zone, zone2)) {
+            zone2 = null;
+        } else if (Objects.equals(zone, zone3)) {
+            zone3 = null;
+        } else {
+            throw new BusinessException(StandbyErrorCode.ZONE_NOT_IN_STANDBY);
+        }
+    }
 }

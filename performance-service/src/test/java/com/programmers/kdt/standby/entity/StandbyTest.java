@@ -227,4 +227,119 @@ public class StandbyTest {
             assertThat(standby.getStandbyStatus()).isEqualTo(StandbyStatus.CANCELLED);
         }
     }
+
+    @Nested
+    @DisplayName("지망 zone 부분 취소(cancelZone)")
+    class CancelZone {
+
+        @Test
+        @DisplayName("여러 zone 중 하나만 취소하면 그 zone만 사라지고 나머지는 유지, 상태는 그대로다.")
+        void cancelOneOfMultipleZones() {
+            // given
+            Standby standby = Standby.apply(1L, session, List.of("A", "B", "C"));
+
+            // when
+            standby.cancelZone("B");
+
+            // then
+            assertThat(standby.getZone1()).isEqualTo("A");
+            assertThat(standby.getZone2()).isNull();
+            assertThat(standby.getZone3()).isEqualTo("C");
+            assertThat(standby.getStandbyStatus()).isEqualTo(StandbyStatus.WAITING);
+        }
+
+        @Test
+        @DisplayName("남은 마지막 zone까지 취소하면 전체 취소(CANCELLED)로 전환된다.")
+        void cancelLastRemainingZoneCancelsWhole() {
+            // given
+            Standby standby = Standby.apply(1L, session, List.of("A"));
+
+            // when
+            standby.cancelZone("A");
+
+            // then
+            assertThat(standby.getZone1()).isNull();
+            assertThat(standby.getStandbyStatus()).isEqualTo(StandbyStatus.CANCELLED);
+        }
+
+        @Test
+        @DisplayName("HELD 상태에서 매칭 안 된(backup) zone을 취소해도 매칭 상태(slot, HELD)는 그대로 유지된다.")
+        void cancelNonMatchedZoneKeepsHeldState() {
+            // given - A로 매칭(HELD), B/C는 아직 후보로 남아있는 상태
+            Standby standby = Standby.apply(1L, session, List.of("A", "B", "C"));
+            standby.hold("A");
+
+            // when
+            standby.cancelZone("C");
+
+            // then
+            assertThat(standby.getZone3()).isNull();
+            assertThat(standby.getStandbyStatus()).isEqualTo(StandbyStatus.HELD);
+            assertThat(standby.getSlot()).isEqualTo(Slot.ZONE1);
+        }
+
+        @Test
+        @DisplayName("HELD 상태에서 매칭된(slot) zone을 취소하면, 남은 zone에 대해 WAITING으로 되돌아간다.")
+        void cancelMatchedZoneRevertsToWaiting() {
+            // given - B로 매칭(HELD), A/C는 아직 후보
+            Standby standby = Standby.apply(1L, session, List.of("A", "B", "C"));
+            standby.hold("B");
+
+            // when
+            standby.cancelZone("B");
+
+            // then
+            assertThat(standby.getZone2()).isNull();
+            assertThat(standby.getZone1()).isEqualTo("A");
+            assertThat(standby.getZone3()).isEqualTo("C");
+            assertThat(standby.getStandbyStatus()).isEqualTo(StandbyStatus.WAITING);
+            assertThat(standby.getSlot()).isNull();
+            assertThat(standby.getHeldAt()).isNull();
+            assertThat(standby.getMatchedZone()).isNull();
+        }
+
+        @Test
+        @DisplayName("HELD 상태에서 매칭된 zone이 유일하게 남은 zone이었다면, 취소 시 바로 전체 취소(CANCELLED)된다.")
+        void cancelMatchedZoneAsLastRemainingCancelsWhole() {
+            // given - 지망 zone이 A 하나뿐이고, 그게 매칭(HELD)된 상태
+            Standby standby = Standby.apply(1L, session, List.of("A"));
+            standby.hold("A");
+
+            // when
+            standby.cancelZone("A");
+
+            // then
+            assertThat(standby.getZone1()).isNull();
+            assertThat(standby.getStandbyStatus()).isEqualTo(StandbyStatus.CANCELLED);
+            assertThat(standby.getSlot()).isNull();
+            assertThat(standby.getHeldAt()).isNull();
+        }
+
+        @Test
+        @DisplayName("지망하지 않은 zone을 취소하려 하면 ZONE_NOT_IN_STANDBY 예외가 발생한다.")
+        void rejectCancelZoneNotRequested() {
+            // given
+            Standby standby = Standby.apply(1L, session, List.of("A"));
+
+            // when & then
+            assertThatThrownBy(() -> standby.cancelZone("Z"))
+                    .isInstanceOfSatisfying(
+                            BusinessException.class,
+                            exception -> assertThat(exception.getErrorCode())
+                                    .isEqualTo(StandbyErrorCode.ZONE_NOT_IN_STANDBY)
+                    );
+        }
+
+        @Test
+        @DisplayName("이미 CANCELLED 상태면 zone 취소를 시도해도 예외 없이 그대로 CANCELLED다(멱등).")
+        void cancelZoneOnAlreadyCancelledIsIdempotent() {
+            // given
+            Standby standby = Standby.apply(1L, session, List.of("A"));
+            standby.cancel();
+
+            // when & then
+            assertThatCode(() -> standby.cancelZone("A")).doesNotThrowAnyException();
+            assertThat(standby.getStandbyStatus()).isEqualTo(StandbyStatus.CANCELLED);
+        }
+    }
 }

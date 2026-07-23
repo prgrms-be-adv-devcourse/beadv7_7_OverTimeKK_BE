@@ -347,4 +347,68 @@ class StandbyServiceTest {
             verify(standby, never()).cancel();
         }
     }
+
+    @Nested
+    @DisplayName("지망 zone 부분 취소(cancelZone)")
+    class CancelZone {
+
+        private static final Long STANDBY_ID = 1L;
+
+        @Test
+        @DisplayName("매칭 안 된 zone을 취소하면 엔티티에 위임만 하고, 재매칭은 시도하지 않는다.")
+        void delegatesToEntityCancelZoneWithoutRematch() {
+            // given - getMatchedZone()이 null이라 취소하려는 "B"와 다름(매칭된 zone이 아님)
+            Standby standby = mock(Standby.class);
+            given(standbyRepository.findById(STANDBY_ID)).willReturn(Optional.of(standby));
+            given(standby.getUserId()).willReturn(USER_ID);
+
+            // when
+            standbyService.cancelZone(STANDBY_ID, USER_ID, "B");
+
+            // then
+            verify(standby).cancelZone("B");
+            verify(standbyRepository, never())
+                    .findMatchCandidates(any(), any(), any(), any());
+        }
+
+        @Test
+        @DisplayName("취소한 zone이 매칭돼있던(HELD) zone이면, 같은 zone으로 다음 대기자에게 즉시 재매칭을 시도한다.")
+        void cancelMatchedZoneTriggersRematch() {
+            // given
+            Standby standby = mock(Standby.class);
+            given(standbyRepository.findById(STANDBY_ID)).willReturn(Optional.of(standby));
+            given(standby.getUserId()).willReturn(USER_ID);
+            given(standby.getMatchedZone()).willReturn("B");
+            given(standby.getPerformanceSession()).willReturn(session);
+            given(standbyRepository.findMatchCandidates(
+                    eq(session), eq("B"), eq(StandbyStatus.WAITING), any(Pageable.class)))
+                    .willReturn(List.of());
+
+            // when
+            standbyService.cancelZone(STANDBY_ID, USER_ID, "B");
+
+            // then
+            verify(standby).cancelZone("B");
+            verify(standbyRepository).findMatchCandidates(
+                    eq(session), eq("B"), eq(StandbyStatus.WAITING), any(Pageable.class));
+        }
+
+        @Test
+        @DisplayName("본인 신청이 아니면 NOT_STANDBY_OWNER 예외가 발생하고 취소되지 않는다.")
+        void rejectWhenNotOwner() {
+            // given
+            Standby standby = mock(Standby.class);
+            given(standbyRepository.findById(STANDBY_ID)).willReturn(Optional.of(standby));
+            given(standby.getUserId()).willReturn(999L);
+
+            // when & then
+            assertThatThrownBy(() -> standbyService.cancelZone(STANDBY_ID, USER_ID, "B"))
+                    .isInstanceOfSatisfying(
+                            BusinessException.class,
+                            exception -> assertThat(exception.getErrorCode())
+                                    .isEqualTo(StandbyErrorCode.NOT_STANDBY_OWNER)
+                    );
+            verify(standby, never()).cancelZone(any());
+        }
+    }
 }

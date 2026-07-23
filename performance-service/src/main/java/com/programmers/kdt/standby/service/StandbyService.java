@@ -6,6 +6,7 @@ import com.programmers.kdt.performance.entity.PerformanceSessionId;
 import com.programmers.kdt.performance.exception.PerformanceErrorCode;
 import com.programmers.kdt.performance.repository.PerformanceSeatPriceRepository;
 import com.programmers.kdt.performance.repository.PerformanceSessionRepository;
+import com.programmers.kdt.standby.dto.CreateStandbyResponse;
 import com.programmers.kdt.standby.entity.Standby;
 import com.programmers.kdt.standby.entity.StandbyStatus;
 import com.programmers.kdt.standby.exception.StandbyErrorCode;
@@ -29,7 +30,7 @@ public class StandbyService {
     private final PerformanceSeatPriceRepository performanceSeatPriceRepository;
     private final TicketRepository ticketRepository;
 
-    public Long applyStandby(Long userId, Long performanceId, Long sessionNum, List<String> zones) {
+    public CreateStandbyResponse applyStandby(Long userId, Long performanceId, Long sessionNum, List<String> zones) {
         PerformanceSession session = findSession(performanceId, sessionNum);
 
         if (standbyRepository.existsByUserIdAndPerformanceSession(userId, session)) {
@@ -40,7 +41,8 @@ public class StandbyService {
         validateAllZonesSoldOut(performanceId, sessionNum, zones);
 
         Standby standby = Standby.apply(userId, session, zones);
-        return standbyRepository.save(standby).getStandbyId();
+        Long standbyId = standbyRepository.save(standby).getStandbyId();
+        return new CreateStandbyResponse(standbyId, zones, StandbyStatus.WAITING.name());
     }
 
 
@@ -87,12 +89,7 @@ public class StandbyService {
 
     // 본인의 WAITING/HELD 대기를 취소. HELD 상태였다면 취소 즉시 같은 zone의 다음 대기자에게 매칭을 넘긴다.
     public void cancelStandby(Long standbyId, Long userId) {
-        Standby standby = standbyRepository.findById(standbyId)
-                .orElseThrow(() -> new BusinessException(StandbyErrorCode.STANDBY_NOT_FOUND));
-
-        if (!standby.getUserId().equals(userId)) {
-            throw new BusinessException(StandbyErrorCode.NOT_STANDBY_OWNER);
-        }
+        Standby standby = findOwnedStandby(standbyId, userId);
 
         boolean wasHeld = standby.getStandbyStatus() == StandbyStatus.HELD;
         String matchedZone = standby.getMatchedZone();
@@ -105,7 +102,29 @@ public class StandbyService {
         }
     }
 
-    //부분대기 취소
+    // 지망 zone 중 하나만 취소. 취소한 zone이 매칭돼있던(HELD) zone이었다면, 그 zone의 다음 대기자에게 즉시 매칭을 넘긴다.
+    public void cancelZone(Long standbyId, Long userId, String zone) {
+        Standby standby = findOwnedStandby(standbyId, userId);
+
+        boolean wasMatchedZone = zone.equals(standby.getMatchedZone());
+        PerformanceSession session = standby.getPerformanceSession();
+
+        standby.cancelZone(zone);
+
+        if (wasMatchedZone) {
+            matchNextCandidate(session, zone);
+        }
+    }
+
+    private Standby findOwnedStandby(Long standbyId, Long userId) {
+        Standby standby = standbyRepository.findById(standbyId)
+                .orElseThrow(() -> new BusinessException(StandbyErrorCode.STANDBY_NOT_FOUND));
+
+        if (!standby.getUserId().equals(userId)) {
+            throw new BusinessException(StandbyErrorCode.NOT_STANDBY_OWNER);
+        }
+        return standby;
+    }
 
     //매칭결제준비
 }
