@@ -5,6 +5,7 @@ import com.programmers.kdt.performance.dto.RegisterPerformanceRequest;
 import com.programmers.kdt.performance.entity.Performance;
 import com.programmers.kdt.performance.entity.PerformanceSeatPrice;
 import com.programmers.kdt.performance.entity.PerformanceSession;
+import com.programmers.kdt.performance.entity.PerformanceStatus;
 import com.programmers.kdt.performance.repository.PerformanceRepository;
 import com.programmers.kdt.performance.repository.PerformanceSeatPriceRepository;
 import com.programmers.kdt.performance.repository.PerformanceSessionRepository;
@@ -17,6 +18,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -67,5 +69,10 @@ public class PerformanceV2Service {
             }
         }
         ticketRepository.saveAll(tickets);
+    }
+
+    @Transactional
+    public int closedPerformance() {
+        return performanceRepository.updateExpiredPerformances(PerformanceStatus.CLOSED, LocalDate.now());
     }
 }
