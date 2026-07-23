@@ -56,10 +56,11 @@ class PaymentServiceImplTest {
     private PerformanceClient performanceClient;
     @Mock
     private RefundEventPublisher refundEventPublisher;
-
-    private PaymentService paymentService;
     @Mock
     private PointService pointService;
+
+    private PaymentService paymentService;
+
 
     @BeforeEach
     void setUp() {
