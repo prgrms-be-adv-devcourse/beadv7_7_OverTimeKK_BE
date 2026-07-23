@@ -45,11 +45,11 @@ public class OrderServiceTest {
     @Mock
     private ApplicationEventPublisher eventPublisher;
 
-    private OrderService orderService;
+    private OrderServiceImpl orderServiceImpl;
 
     @BeforeEach
     void setUp(){
-        orderService = new OrderService(orderRepository, ticketClient, paymentService, eventPublisher);
+        orderServiceImpl = new OrderServiceImpl(orderRepository, ticketClient, paymentService, eventPublisher);
     }
 
     @Nested
@@ -73,7 +73,7 @@ public class OrderServiceTest {
 
             // when
             CreateOrderResponse response =
-                    orderService.createOrder(request);
+                    orderServiceImpl.createOrder(request);
 
             // then
             ArgumentCaptor<Order> captor =
@@ -103,7 +103,7 @@ public class OrderServiceTest {
                     .thenThrow(exception);
             // when & then
             assertThatThrownBy(
-                    () -> orderService.createOrder(request)
+                    () -> orderServiceImpl.createOrder(request)
             )
                     .isSameAs(exception);
             verify(orderRepository, never())
@@ -125,7 +125,7 @@ public class OrderServiceTest {
                     .thenReturn(Optional.of(order));
 
             // when
-            orderService.completeOrder(orderId);
+            orderServiceImpl.completeOrder(orderId);
 
             // then
             verify(order).complete();
@@ -143,7 +143,7 @@ public class OrderServiceTest {
 
             // when & then
             assertThatThrownBy(
-                    () -> orderService.completeOrder(orderId)
+                    () -> orderServiceImpl.completeOrder(orderId)
             ).isInstanceOfSatisfying(
                     BusinessException.class,
                     exception ->{
@@ -174,7 +174,7 @@ public class OrderServiceTest {
             ).thenReturn(List.of(firstOrder, secondOrder));
 
             // when
-            orderService.expireOrders();
+            orderServiceImpl.expireOrders();
 
             // then
             verify(firstOrder).expire();
@@ -196,7 +196,7 @@ public class OrderServiceTest {
             )).thenReturn(List.of());
 
             // when
-            orderService.expireOrders();
+            orderServiceImpl.expireOrders();
 
             // then
             verify(orderRepository)
@@ -232,7 +232,7 @@ public class OrderServiceTest {
             when(order.getOrderStatus()).thenReturn(OrderStatus.CANCELLED);
 
             // when
-            CancelOrderResponse response = orderService.cancelOrder(100L, request);
+            CancelOrderResponse response = orderServiceImpl.cancelOrder(100L, request);
 
             // then
             assertThat(response).isNotNull();
@@ -269,7 +269,7 @@ public class OrderServiceTest {
 
             // when & then
             assertThatThrownBy(
-                    () -> orderService.cancelOrder(100L, request)
+                    () -> orderServiceImpl.cancelOrder(100L, request)
             )
                     .isSameAs(exception);
             verify(paymentService, never()).refund(any(), any());
@@ -300,7 +300,7 @@ public class OrderServiceTest {
 
             // when & then
             assertThatThrownBy(
-                    () -> orderService.cancelOrder(100L, request)
+                    () -> orderServiceImpl.cancelOrder(100L, request)
             )
                     .isSameAs(exception);
 
@@ -326,7 +326,7 @@ public class OrderServiceTest {
                     .thenReturn(OrderStatus.CANCELLED);
 
             // when
-            orderService.cancelOrder(100L, request);
+            orderServiceImpl.cancelOrder(100L, request);
 
             // then
             verify(eventPublisher).publishEvent(
@@ -371,7 +371,7 @@ public class OrderServiceTest {
 
             // when
             List<GetOrderHistoryResponse> responses =
-                    orderService.getOrderHistory(userId);
+                    orderServiceImpl.getOrderHistory(userId);
 
             // then
             assertThat(responses).hasSize(1);
@@ -398,7 +398,7 @@ public class OrderServiceTest {
 
             // when
             List<GetOrderHistoryResponse> responses =
-                    orderService.getOrderHistory(1L);
+                    orderServiceImpl.getOrderHistory(1L);
 
             // then
             assertThat(responses).isEmpty();
