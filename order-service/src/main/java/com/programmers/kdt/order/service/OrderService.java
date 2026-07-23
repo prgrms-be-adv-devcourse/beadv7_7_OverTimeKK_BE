@@ -15,6 +15,9 @@ public interface OrderService {
     // 주문 만료
     void expireOrders();
 
+    // 주문 만료 조회
+    void startPayment(Long orderId);
+
     // 주문 취소
     CancelOrderResponse cancelOrder(Long orderId, CancelOrderRequest request);
 

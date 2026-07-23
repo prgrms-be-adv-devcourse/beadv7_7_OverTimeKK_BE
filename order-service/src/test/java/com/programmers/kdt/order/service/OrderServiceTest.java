@@ -62,8 +62,9 @@ public class OrderServiceTest {
         @DisplayName("티켓을 점유하고 올바른 주문을 생성한다")
         void createOrderSuccess() {
             // given
+            LocalDateTime holdExpiresAt = LocalDateTime.now().plusMinutes(10);
             TicketHoldResult holdTicket =
-                    new TicketHoldResult(10L, 50_000L);
+                    new TicketHoldResult(10L, 50_000L, holdExpiresAt);
 
             when(ticketClient.holdSeat(10L, 1L))
                     .thenReturn(holdTicket);
@@ -167,7 +168,7 @@ public class OrderServiceTest {
             Order secondOrder = mock(Order.class);
 
             when(
-                    orderRepository.findAllByOrderStatusAndCreatedAtLessThanEqual(
+                    orderRepository.findAllByOrderStatusAndExpiresAtLessThanEqual(
                             eq(OrderStatus.PENDING),
                             any(LocalDateTime.class)
                     )
@@ -179,8 +180,9 @@ public class OrderServiceTest {
             // then
             verify(firstOrder).expire();
             verify(secondOrder).expire();
+
             verify(orderRepository)
-                    .findAllByOrderStatusAndCreatedAtLessThanEqual(
+                    .findAllByOrderStatusAndExpiresAtLessThanEqual(
                             eq(OrderStatus.PENDING),
                             any(LocalDateTime.class)
                     );
@@ -190,7 +192,7 @@ public class OrderServiceTest {
         @DisplayName("만료 대상 주문이 없으면 아무 주문도 변경하지 않는다")
         void expireOrdersEmpty(){
             // given
-            when(orderRepository.findAllByOrderStatusAndCreatedAtLessThanEqual(
+            when(orderRepository.findAllByOrderStatusAndExpiresAtLessThanEqual(
                     eq(OrderStatus.PENDING),
                     any(LocalDateTime.class)
             )).thenReturn(List.of());
@@ -200,10 +202,11 @@ public class OrderServiceTest {
 
             // then
             verify(orderRepository)
-                    .findAllByOrderStatusAndCreatedAtLessThanEqual(
+                    .findAllByOrderStatusAndExpiresAtLessThanEqual(
                             eq(OrderStatus.PENDING),
                             any(LocalDateTime.class)
                     );
+
             verifyNoInteractions(
                     ticketClient,
                     paymentService,

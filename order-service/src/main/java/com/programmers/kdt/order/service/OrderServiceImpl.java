@@ -14,10 +14,12 @@ import com.programmers.kdt.order.repository.OrderRepository;
 import com.programmers.kdt.payment.dto.RefundPaymentRequest;
 import com.programmers.kdt.payment.service.PaymentService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cglib.core.Local;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -39,8 +41,8 @@ public class OrderServiceImpl implements OrderService {
         // 주문 항목 생성 - 현재는 티켓 1매만 가능
         OrderItem item = OrderItem.create(holdTicket.ticketId(), holdTicket.ticketPrice());
 
-        // 주문 생성 및 저장
-        Order order = Order.create(request.userId(), List.of(item));
+        // 주문 생성 및 저장 -- 티켓 만료 시각을 주문 만료 시각으로 설정
+        Order order = Order.create(request.userId(), List.of(item), holdTicket.holdExpiresAt());
         Order savedOrder = orderRepository.save(order);
 
         return CreateOrderResponse.from(savedOrder);
@@ -56,15 +58,23 @@ public class OrderServiceImpl implements OrderService {
     // 주문 만료
     @Transactional
     public void expireOrders(){
-        LocalDateTime cutoff = LocalDateTime.now().minusMinutes(10);
+        LocalDateTime now = LocalDateTime.now();
 
-        List<Order> orders = orderRepository.findAllByOrderStatusAndCreatedAtLessThanEqual(
+        List<Order> orders = orderRepository.findAllByOrderStatusAndExpiresAtLessThanEqual(
                 OrderStatus.PENDING,
-                cutoff
+                now
         );
         for(Order order : orders){
             order.expire();
         }
+    }
+
+    // 주문 만료 조회 -- 결제 생성 API 클릭 시 호출
+    @Transactional
+    public void startPayment(Long orderId) {
+        Order order = findOrder(orderId);
+
+        order.startPayment(LocalDateTime.now());
     }
 
     // 주문 취소
