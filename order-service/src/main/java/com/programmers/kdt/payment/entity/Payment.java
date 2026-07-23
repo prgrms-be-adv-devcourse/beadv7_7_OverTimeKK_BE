@@ -2,6 +2,7 @@ package com.programmers.kdt.payment.entity;
 
 import com.programmers.kdt.common.entity.BaseTimeEntity;
 import com.programmers.kdt.common.exception.BusinessException;
+import com.programmers.kdt.payment.entity.converter.PaymentKeyConverter;
 import com.programmers.kdt.payment.exception.PaymentErrorCode;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
@@ -34,6 +35,7 @@ public class Payment extends BaseTimeEntity {
     @Column(name = "refunded_amount", nullable = false)
     private Long refundedAmount;
 
+    @Convert(converter = PaymentKeyConverter.class)
     @Column(name = "payment_key")
     private String paymentKey; // PG 참조값
 
