@@ -142,6 +142,21 @@ class PointServiceImplTest {
 
             verify((pointLogRepository), never()).save(any());
         }
+
+        @Test
+        @DisplayName("이미 처리된 eventId면 아무 것도 하지 않고 리턴한다.")
+        void useAlreadyProcessed() {
+            // given
+            PointLog existingLog = PointLog.use(1L, 300L, "ORDER:1:POINT_USE");
+            when(pointLogRepository.findByEventId("ORDER:1:POINT_USE")).thenReturn(Optional.of(existingLog));
+
+            // when
+            pointService.usePoint(1L, 300L, "ORDER:1:POINT_USE");
+
+            // then
+            verifyNoInteractions(pointRepository);
+            verify(pointLogRepository, never()).save(any());
+        }
     }
 
     @Nested
@@ -309,6 +324,22 @@ class PointServiceImplTest {
             verify(pointLogRepository, never()).save(any());
 
 
+        }
+
+        @Test
+        @DisplayName("원본 사용 로그가 없으면 ORIGIN_POINT_LOG_NOT_FOUND 예외가 발생한다.")
+        void rollbackOriginLogNotFound() {
+            // given
+            when(pointLogRepository.findByEventId("rollbackEventId")).thenReturn(Optional.empty());
+            when(pointLogRepository.findByEventId("originEventId")).thenReturn(Optional.empty());
+
+            // when & then
+            assertThatThrownBy(() -> pointService.rollbackPoint("originEventId", 300L, "rollbackEventId", true))
+                    .isInstanceOf(BusinessException.class)
+                    .extracting(e -> ((BusinessException) e).getErrorCode())
+                    .isEqualTo(PointErrorCode.ORIGIN_POINT_LOG_NOT_FOUND);
+
+            verifyNoInteractions(pointRepository);
         }
     }
 }
