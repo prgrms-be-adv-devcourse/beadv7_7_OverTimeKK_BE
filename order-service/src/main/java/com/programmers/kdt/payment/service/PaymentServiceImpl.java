@@ -41,6 +41,7 @@ public class PaymentServiceImpl implements PaymentService{
     private final PerformanceClient performanceClient;
     private final OrderClient orderClient;
     private final PgClient pgClient;
+    private final PointService pointService;
 
 
     // 결제 생성
@@ -58,12 +59,25 @@ public class PaymentServiceImpl implements PaymentService{
             throw new BusinessException(PaymentErrorCode.INVALID_PAYMENT_AMOUNT);
         }
 
+        // 사용 포인트 검증 및 차감 (PG 결제 금액 = 주문 금액 - 사용 포인트)
+        Long usedPoint = request.usedPointOrZero();
+        if (usedPoint > request.amount() || usedPoint < 0) {
+            throw new BusinessException(PaymentErrorCode.INVALID_PAYMENT_AMOUNT);
+        }
+
+        // 아직 포인트 전액 결제는 고려하지 않은 상태.
+        Long pgAmount = request.amount() - usedPoint;
+
+        if (usedPoint > 0) {
+            pointService.usePoint(order.getUserId(), usedPoint, pointUseEventId(request.orderId()));
+        }
+
         Payment payment = Payment.create(order.getOrderId(), order.getUserId(), request.amount());
 
         // 나중에 PG사 요청은 트랜잭션에서 빼는 것을 고려
         PgReadyResult readyResult;
         try {
-            readyResult = pgClient.ready(new PgReadyCommand(request.orderId(), request.amount()));
+            readyResult = pgClient.ready(new PgReadyCommand(request.orderId(), pgAmount));
         } catch (PgClientException e) {
             log.error("토스 결제 준비 실패 - orderId={}, pgCode={}, pgMessage={}", request.orderId(), e.getPgErrorCode(), e.getMessage());
             throw new BusinessException(PaymentErrorCode.PG_REQUEST_FAILED);
@@ -89,13 +103,15 @@ public class PaymentServiceImpl implements PaymentService{
         }
 
         payment.assignPaymentKey(request.transactionKey());
+        Long usedPoint = resolveUsedPoint(pointUseEventId(payment.getOrderId()));
+        Long pgApproveAmount = payment.getAmount() - usedPoint;
 
         PgApproveResult approveResult;
         try {
             approveResult = pgClient.approve(new PgApproveCommand(
                     payment.getPaymentKey(),
                     payment.getPgOrderId(),
-                    payment.getAmount()));
+                    pgApproveAmount));
         } catch (PgClientException e) {
             log.error("토스 결제 승인 실패 - paymentId={}, pgCode={}, pgMessage={}", paymentId, e.getPgErrorCode(), e.getMessage());
             throw new BusinessException(PaymentErrorCode.PG_REQUEST_FAILED);
@@ -109,9 +125,27 @@ public class PaymentServiceImpl implements PaymentService{
             payment.approve();
         } else {
             payment.fail();
+            if (usedPoint > 0) {
+                pointService.rollbackPoint(pointUseEventId(payment.getOrderId()), usedPoint,
+                        pointRollbackFailEventId(payment.getOrderId()), true);
+
+            }
         }
 
         return ConfirmPaymentResponse.from(payment);
+    }
+
+    private Long resolveUsedPoint(String eventId) {
+        Long usedPoint = pointService.findUsedAmount(eventId);
+        return usedPoint == null ? 0L : usedPoint;
+    }
+
+    private String pointUseEventId(Long orderId) {
+        return "ORDER:" + orderId + ":POINT_USE";
+    }
+
+    private String pointRollbackFailEventId(Long orderId) {
+        return "ORDER:" + orderId + ":POINT_ROLLBACK_FAIL";
     }
 
     // 결제 실패 요청
@@ -217,4 +251,5 @@ public class PaymentServiceImpl implements PaymentService{
         return paymentRepository.findById(paymentId)
                 .orElseThrow(() -> new BusinessException(PaymentErrorCode.PAYMENT_NOT_FOUND));
     }
+
 }
