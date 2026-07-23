@@ -6,6 +6,7 @@ import com.programmers.kdt.order.service.OrderService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -19,10 +20,11 @@ public class OrderController {
 
     // 주문 요청
     @PostMapping
-    @ResponseStatus(HttpStatus.CREATED)
-    public ApiResponse<CreateOrderResponse> create(@Valid @RequestBody CreateOrderRequest request) {
+    public ResponseEntity<ApiResponse<CreateOrderResponse>> create(@Valid @RequestBody CreateOrderRequest request) {
         CreateOrderResponse response = orderService.createOrder(request);
-        return ApiResponse.success(response);
+        return ResponseEntity
+                .status(HttpStatus.CREATED)
+                .body(ApiResponse.success(response));
     }
 
     // 주문 취소
