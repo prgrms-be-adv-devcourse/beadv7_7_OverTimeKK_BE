@@ -7,14 +7,17 @@ import com.programmers.kdt.performance.exception.PerformanceErrorCode;
 import com.programmers.kdt.performance.repository.PerformanceSeatPriceRepository;
 import com.programmers.kdt.performance.repository.PerformanceSessionRepository;
 import com.programmers.kdt.standby.entity.Standby;
+import com.programmers.kdt.standby.entity.StandbyStatus;
 import com.programmers.kdt.standby.exception.StandbyErrorCode;
 import com.programmers.kdt.standby.repository.StandbyRepository;
 import com.programmers.kdt.ticket.repository.TicketRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -27,9 +30,7 @@ public class StandbyService {
     private final TicketRepository ticketRepository;
 
     public Long applyStandby(Long userId, Long performanceId, Long sessionNum, List<String> zones) {
-        PerformanceSession session = performanceSessionRepository
-                .findById(new PerformanceSessionId(sessionNum, performanceId))
-                .orElseThrow(() -> new BusinessException(PerformanceErrorCode.PERFORMANCE_SESSION_NOT_FOUND));
+        PerformanceSession session = findSession(performanceId, sessionNum);
 
         if (standbyRepository.existsByUserIdAndPerformanceSession(userId, session)) {
             throw new BusinessException(StandbyErrorCode.ALREADY_APPLIED);
@@ -60,7 +61,26 @@ public class StandbyService {
         }
     }
 
-    //대기매칭 성공
+    // zone에 자리가 나면 호출. 해당 zone을 지망(zone1/zone2/zone3)한 WAITING 중 가장 먼저 신청한 사람을 HELD로 전환한다.
+    public Optional<Long> tryMatch(Long performanceId, Long sessionNum, String zone) {
+        PerformanceSession session = findSession(performanceId, sessionNum);
+
+        List<Standby> candidates = standbyRepository
+                .findMatchCandidates(session, zone, StandbyStatus.WAITING, PageRequest.of(0, 1));
+        if (candidates.isEmpty()) {
+            return Optional.empty();
+        }
+
+        Standby matched = candidates.get(0);
+        matched.hold(zone);
+        return Optional.of(matched.getStandbyId());
+    }
+
+    private PerformanceSession findSession(Long performanceId, Long sessionNum) {
+        return performanceSessionRepository
+                .findById(new PerformanceSessionId(sessionNum, performanceId))
+                .orElseThrow(() -> new BusinessException(PerformanceErrorCode.PERFORMANCE_SESSION_NOT_FOUND));
+    }
 
     //대기매칭 취소
 

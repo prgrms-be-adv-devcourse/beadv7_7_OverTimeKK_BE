@@ -93,4 +93,23 @@ public class Standby extends BaseTimeEntity {
             throw new BusinessException(StandbyErrorCode.DUPLICATE_ZONE);
         }
     }
+
+    public void hold(String zone) {
+        this.slot = resolveSlot(zone);
+        this.standbyStatus = StandbyStatus.HELD;
+        this.heldAt = LocalDateTime.now();
+    }
+
+    private Slot resolveSlot(String zone) {
+        if (Objects.equals(zone, zone1)) {
+            return Slot.ZONE1;
+        }
+        if (Objects.equals(zone, zone2)) {
+            return Slot.ZONE2;
+        }
+        if (Objects.equals(zone, zone3)) {
+            return Slot.ZONE3;
+        }
+        throw new IllegalStateException("매칭 대상 zone이 이 대기 신청의 지망 목록에 없습니다.");
+    }
 }

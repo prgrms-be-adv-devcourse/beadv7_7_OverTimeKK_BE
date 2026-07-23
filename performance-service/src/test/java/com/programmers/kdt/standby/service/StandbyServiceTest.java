@@ -6,6 +6,7 @@ import com.programmers.kdt.performance.entity.PerformanceSessionId;
 import com.programmers.kdt.performance.repository.PerformanceSeatPriceRepository;
 import com.programmers.kdt.performance.repository.PerformanceSessionRepository;
 import com.programmers.kdt.standby.entity.Standby;
+import com.programmers.kdt.standby.entity.StandbyStatus;
 import com.programmers.kdt.standby.exception.StandbyErrorCode;
 import com.programmers.kdt.standby.repository.StandbyRepository;
 import com.programmers.kdt.ticket.repository.TicketRepository;
@@ -16,6 +17,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Pageable;
 
 import java.util.List;
 import java.util.Optional;
@@ -23,6 +25,7 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -216,6 +219,51 @@ class StandbyServiceTest {
                                     .isEqualTo(StandbyErrorCode.ZONE_NOT_SOLD_OUT)
                     );
             verify(standbyRepository, never()).save(any(Standby.class));
+        }
+    }
+
+    @Nested
+    @DisplayName("매칭(tryMatch) - zone에 자리가 났을 때(대기1순위일떄) 대기자 선정")
+    class TryMatch {
+
+        @Test
+        @DisplayName("해당 zone 대기자가 있으면 repository가 돌려준 목록의 첫 번째(FIFO 선두)가 매칭되어 HELD로 바뀐다.")
+        void matchesEarliestCandidate() {
+            // given - (예약취소 혹은 매칭 취소로 인해) repository가 reservedAt asc로 정렬해서 돌려준다고 가정, 그 중 첫 번째가 매칭 대상
+            Standby earliest = mock(Standby.class);
+            Standby later = mock(Standby.class);
+
+            given(earliest.getStandbyId()).willReturn(100L);
+            given(performanceSessionRepository.findById(sessionId()))
+                    .willReturn(Optional.of(session));
+            given(standbyRepository.findMatchCandidates(
+                    eq(session), eq("A"), eq(StandbyStatus.WAITING), any(Pageable.class)))
+                    .willReturn(List.of(earliest, later));
+
+            // when
+            Optional<Long> matchedId = standbyService.tryMatch(PERFORMANCE_ID, SESSION_NUM, "A");
+
+            // then
+            assertThat(matchedId).contains(100L);
+            verify(earliest).hold("A");
+            verify(later, never()).hold(any());
+        }
+
+        @Test
+        @DisplayName("해당 zone 대기자가 없으면 매칭되지 않고 빈 값을 반환한다.")
+        void returnsEmptyWhenNoCandidate() {
+            // given
+            given(performanceSessionRepository.findById(sessionId()))
+                    .willReturn(Optional.of(session));
+            given(standbyRepository.findMatchCandidates(
+                    eq(session), eq("A"), eq(StandbyStatus.WAITING), any(Pageable.class)))
+                    .willReturn(List.of());
+
+            // when
+            Optional<Long> matchedId = standbyService.tryMatch(PERFORMANCE_ID, SESSION_NUM, "A");
+
+            // then
+            assertThat(matchedId).isEmpty();
         }
     }
 }

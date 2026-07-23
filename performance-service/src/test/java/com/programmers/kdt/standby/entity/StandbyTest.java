@@ -123,4 +123,35 @@ public class StandbyTest {
                     );
         }
     }
+
+    @Nested
+    @DisplayName("매칭 확정(hold)")
+    class Hold {
+
+        @Test
+        @DisplayName("매칭된 zone이 zone2 지망이면 slot이 ZONE2로, 상태는 HELD로 바뀐다.")
+        void holdSetsSlotAndStatus() {
+            // given
+            Standby standby = Standby.apply(1L, session, List.of("A", "B", "C"));
+
+            // when
+            standby.hold("B");
+
+            // then
+            assertThat(standby.getSlot()).isEqualTo(Slot.ZONE2);
+            assertThat(standby.getStandbyStatus()).isEqualTo(StandbyStatus.HELD);
+            assertThat(standby.getHeldAt()).isNotNull();
+        }
+
+        @Test
+        @DisplayName("매칭하려는 zone이 지망 목록(zone1/zone2/zone3)에 없으면 예외가 발생한다.")
+        void holdWithZoneNotRequested() {
+            // given
+            Standby standby = Standby.apply(1L, session, List.of("A"));
+
+            // when & then
+            assertThatThrownBy(() -> standby.hold("Z"))
+                    .isInstanceOf(IllegalStateException.class);
+        }
+    }
 }
