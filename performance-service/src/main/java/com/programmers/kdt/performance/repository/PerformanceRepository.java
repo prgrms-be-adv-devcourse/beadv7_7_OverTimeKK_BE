@@ -9,6 +9,5 @@ import org.springframework.data.jpa.repository.JpaRepository;
 public interface PerformanceRepository extends JpaRepository<Performance, Long> {
     Page<Performance> findByPerformanceStatus(PerformanceStatus status, Pageable pageable);
 
-    @Override
     Page<Performance> findAll(Pageable pageable);
 }

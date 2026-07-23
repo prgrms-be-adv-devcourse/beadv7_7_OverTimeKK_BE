@@ -5,7 +5,6 @@ import com.programmers.kdt.performance.dto.RegisterPerformanceRequest;
 import com.programmers.kdt.performance.entity.Performance;
 import com.programmers.kdt.performance.entity.PerformanceSeatPrice;
 import com.programmers.kdt.performance.entity.PerformanceSession;
-import com.programmers.kdt.performance.exception.PerformanceErrorCode;
 import com.programmers.kdt.performance.repository.PerformanceRepository;
 import com.programmers.kdt.performance.repository.PerformanceSeatPriceRepository;
 import com.programmers.kdt.performance.repository.PerformanceSessionRepository;
