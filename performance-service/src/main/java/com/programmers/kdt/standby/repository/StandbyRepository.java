@@ -7,4 +7,6 @@ import java.util.List;
 
 public interface StandbyRepository extends JpaRepository<Standby, Long> {
     List<Standby> findByPerformanceSessionOrderByReservedAtAsc(PerformanceSession session);
+
+    boolean existsByUserIdAndPerformanceSession(Long userId, PerformanceSession performanceSession);
 }

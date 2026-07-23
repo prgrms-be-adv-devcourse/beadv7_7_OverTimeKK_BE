@@ -24,10 +24,6 @@ public class TicketService {
         // TODO
     }
 
-    /**
-     * 대기 신청. 회차/구역 검증 및 순번(대기신청 시각) 저장은
-     * {@link StandbyService#applyStandby}에 위임한다.
-     */
     public CreateStandbyResponse issueStandby(Long userId, Long performanceId, Long sessionNum, List<String> zones) {
         Long standbyId = standbyService.applyStandby(userId, performanceId, sessionNum, zones);
         return new CreateStandbyResponse(standbyId, zones, StandbyStatus.WAITING.name());
