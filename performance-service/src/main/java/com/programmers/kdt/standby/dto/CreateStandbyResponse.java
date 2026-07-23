@@ -1,4 +1,4 @@
-package com.programmers.kdt.ticket.dto;
+package com.programmers.kdt.standby.dto;
 
 import java.util.List;
 
