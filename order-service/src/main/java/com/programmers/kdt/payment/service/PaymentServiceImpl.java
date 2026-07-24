@@ -96,7 +96,7 @@ public class PaymentServiceImpl implements PaymentService{
         }
 
         payment.assignPaymentKey(request.transactionKey());
-        Long usedPoint = resolveUsedPoint(pointUseEventId(payment.getOrderId()));
+        Long usedPoint = getUsedPointForOrder(payment.getOrderId());
         Long pgApproveAmount = payment.getAmount() - usedPoint;
 
         PgApproveResult approveResult = callPg("토스 결제 승인", paymentId,
@@ -136,7 +136,7 @@ public class PaymentServiceImpl implements PaymentService{
                         () -> pgClient.cancel(new PgCancelCommand(payment.getPaymentKey(), payment.getAmount(), request.reason())));
             }
 
-            Long usedPoint = resolveUsedPoint(pointUseEventId(payment.getOrderId()));
+            Long usedPoint = getUsedPointForOrder(payment.getOrderId());
             if (usedPoint > 0) {
                 pointService.rollbackPoint(pointUseEventId(payment.getOrderId()), usedPoint,
                         pointRollbackFailEventId(payment.getOrderId()), true);
@@ -204,7 +204,7 @@ public class PaymentServiceImpl implements PaymentService{
             paymentRefundRepository.save(PaymentRefund.create(payment.getId(), refundAmount, event.reason()));
             payment.completeRefund(refundAmount);
 
-            Long usedPoint = resolveUsedPoint(pointUseEventId(payment.getOrderId()));
+            Long usedPoint = getUsedPointForOrder(payment.getOrderId());
             if (usedPoint > 0) {
                 rollbackRefundPointWithRetry(payment.getOrderId(), usedPoint, refundRate, payment.getId());
             }
@@ -245,6 +245,10 @@ public class PaymentServiceImpl implements PaymentService{
     private Payment getPayment(Long paymentId) {
         return paymentRepository.findById(paymentId)
                 .orElseThrow(() -> new BusinessException(PaymentErrorCode.PAYMENT_NOT_FOUND));
+    }
+
+    private Long getUsedPointForOrder(Long orderId) {
+        return resolveUsedPoint(pointUseEventId(orderId));
     }
 
     private String pointUseEventId(Long orderId) {
