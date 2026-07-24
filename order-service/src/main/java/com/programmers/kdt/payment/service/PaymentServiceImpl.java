@@ -107,11 +107,7 @@ public class PaymentServiceImpl implements PaymentService{
             payment.approve();
         } else {
             payment.fail();
-            if (usedPoint > 0) {
-                pointService.rollbackPoint(pointUseEventId(payment.getOrderId()), usedPoint,
-                        pointRollbackFailEventId(payment.getOrderId()), true);
-
-            }
+            rollbackFailedPoint(payment.getOrderId(), usedPoint);
         }
 
         return ConfirmPaymentResponse.from(payment);
@@ -137,10 +133,7 @@ public class PaymentServiceImpl implements PaymentService{
             }
 
             Long usedPoint = getUsedPointForOrder(payment.getOrderId());
-            if (usedPoint > 0) {
-                pointService.rollbackPoint(pointUseEventId(payment.getOrderId()), usedPoint,
-                        pointRollbackFailEventId(payment.getOrderId()), true);
-            }
+            rollbackFailedPoint(payment.getOrderId(), usedPoint);
         }
 
         return FailPaymentResponse.from(payment);
@@ -261,6 +254,13 @@ public class PaymentServiceImpl implements PaymentService{
 
     private String pointRollbackRefundEventId(Long orderId) {
         return "ORDER:" + orderId + ":POINT_ROLLBACK_REFUND";
+    }
+
+    private void rollbackFailedPoint(Long orderId, Long usedPoint) {
+        if (usedPoint > 0) {
+            pointService.rollbackPoint(pointUseEventId(orderId), usedPoint,
+                    pointRollbackFailEventId(orderId), true);
+        }
     }
 
     // 재시도
