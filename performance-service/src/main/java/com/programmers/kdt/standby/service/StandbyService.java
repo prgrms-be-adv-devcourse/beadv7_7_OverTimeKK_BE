@@ -7,6 +7,7 @@ import com.programmers.kdt.performance.exception.PerformanceErrorCode;
 import com.programmers.kdt.performance.repository.PerformanceSeatPriceRepository;
 import com.programmers.kdt.performance.repository.PerformanceSessionRepository;
 import com.programmers.kdt.standby.dto.CreateStandbyResponse;
+import com.programmers.kdt.standby.dto.StandbyRankResponse;
 import com.programmers.kdt.standby.entity.Standby;
 import com.programmers.kdt.standby.entity.StandbyStatus;
 import com.programmers.kdt.standby.exception.StandbyErrorCode;
@@ -17,8 +18,11 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
+import java.util.stream.Stream;
 
 @Service
 @RequiredArgsConstructor
@@ -44,6 +48,27 @@ public class StandbyService {
         Long standbyId = standbyRepository.save(standby).getStandbyId();
         return new CreateStandbyResponse(standbyId, zones, StandbyStatus.WAITING.name());
     }
+
+    public StandbyRankResponse getStandbyRank (Long standbyId, Long userId) {
+        Standby standby = findOwnedStandby(standbyId, userId);
+        if (standby.getStandbyStatus() != StandbyStatus.WAITING) {
+            throw new BusinessException(StandbyErrorCode.CANNOT_VIEW_RANK);
+        }
+        List<String> zones = Stream.of(standby.getZone1(),standby.getZone2(),standby.getZone3())
+                .filter(Objects::nonNull)
+                .toList();
+        //  쿼리로 순위 각각 조회
+        List<StandbyRankResponse.ZoneRank> zoneRanks = new ArrayList<>();
+        for(String zone : zones) {
+            long rankCount = standbyRepository.countRankCount(
+                    standby.getPerformanceSession(), zone, StandbyStatus.WAITING, standby.getReservedAt());
+            zoneRanks.add(new StandbyRankResponse.ZoneRank(zone, rankCount+1)
+            );
+
+        }
+        return new StandbyRankResponse(standby.getStandbyId(),zoneRanks);
+    }
+
 
 
     private void validateZonesUsedByPerformance(Long performanceId, List<String> zones) {

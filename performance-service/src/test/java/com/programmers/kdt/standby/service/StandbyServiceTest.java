@@ -7,6 +7,7 @@ import com.programmers.kdt.performance.repository.PerformanceSeatPriceRepository
 import com.programmers.kdt.performance.repository.PerformanceSessionRepository;
 import com.programmers.kdt.standby.entity.Standby;
 import com.programmers.kdt.standby.entity.StandbyStatus;
+import com.programmers.kdt.standby.dto.StandbyRankResponse;
 import com.programmers.kdt.standby.exception.StandbyErrorCode;
 import com.programmers.kdt.standby.repository.StandbyRepository;
 import com.programmers.kdt.ticket.repository.TicketRepository;
@@ -19,6 +20,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.Pageable;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -229,7 +231,7 @@ class StandbyServiceTest {
         @Test
         @DisplayName("해당 zone 대기자가 있으면 repository가 돌려준 목록의 첫 번째(FIFO 선두)가 매칭되어 HELD로 바뀐다.")
         void matchesEarliestCandidate() {
-            // given - (예약취소 혹은 매칭 취소로 인해) repository가 reservedAt asc로 정렬해서 돌려준다고 가정, 그 중 첫 번째가 매칭 대상
+            // given - (예약취소 혹은 매칭 취소로 인해) match 콜이 왔다고 가정, 그 중 첫 번째가 매칭 대상
             Standby earliest = mock(Standby.class);
             Standby later = mock(Standby.class);
 
@@ -409,6 +411,105 @@ class StandbyServiceTest {
                                     .isEqualTo(StandbyErrorCode.NOT_STANDBY_OWNER)
                     );
             verify(standby, never()).cancelZone(any());
+        }
+    }
+
+    @Nested
+    @DisplayName("대기 순위 조회(getStandbyRank)")
+    class GetStandbyRank {
+
+        private static final Long STANDBY_ID = 1L;
+        private final LocalDateTime reservedAt = LocalDateTime.now();
+
+        @Test
+        @DisplayName("지망 zone이 1개면, 그 zone에서 나보다 먼저 신청한 인원 수 + 1이 순위로 반환된다.")
+        void returnsRankForSingleZone() {
+            // given
+            Standby standby = mock(Standby.class);
+            given(standbyRepository.findById(STANDBY_ID)).willReturn(Optional.of(standby));
+            given(standby.getUserId()).willReturn(USER_ID);
+            given(standby.getStandbyId()).willReturn(STANDBY_ID);
+            given(standby.getStandbyStatus()).willReturn(StandbyStatus.WAITING);
+            given(standby.getZone1()).willReturn("A");
+            given(standby.getZone2()).willReturn(null);
+            given(standby.getZone3()).willReturn(null);
+            given(standby.getReservedAt()).willReturn(reservedAt);
+            given(standby.getPerformanceSession()).willReturn(session);
+            given(standbyRepository.countRankCount(session, "A", StandbyStatus.WAITING, reservedAt))
+                    .willReturn(2L);
+
+            // when
+            StandbyRankResponse response = standbyService.getStandbyRank(STANDBY_ID, USER_ID);
+
+            // then
+            assertThat(response.standbyId()).isEqualTo(STANDBY_ID);
+            assertThat(response.zoneRanks())
+                    .containsExactly(new StandbyRankResponse.ZoneRank("A", 3L));
+        }
+
+        @Test
+        @DisplayName("지망 zone이 여러 개면, zone별로 각각의 순위가 리스트로 반환된다.")
+        void returnsRankForEachZone() {
+            // given
+            Standby standby = mock(Standby.class);
+            given(standbyRepository.findById(STANDBY_ID)).willReturn(Optional.of(standby));
+            given(standby.getUserId()).willReturn(USER_ID);
+            given(standby.getStandbyId()).willReturn(STANDBY_ID);
+            given(standby.getStandbyStatus()).willReturn(StandbyStatus.WAITING);
+            given(standby.getZone1()).willReturn("A");
+            given(standby.getZone2()).willReturn("B");
+            given(standby.getZone3()).willReturn(null);
+            given(standby.getReservedAt()).willReturn(reservedAt);
+            given(standby.getPerformanceSession()).willReturn(session);
+            given(standbyRepository.countRankCount(session, "A", StandbyStatus.WAITING, reservedAt))
+                    .willReturn(0L);
+            given(standbyRepository.countRankCount(session, "B", StandbyStatus.WAITING, reservedAt))
+                    .willReturn(4L);
+
+            // when
+            StandbyRankResponse response = standbyService.getStandbyRank(STANDBY_ID, USER_ID);
+
+            // then
+            assertThat(response.zoneRanks())
+                    .containsExactly(
+                            new StandbyRankResponse.ZoneRank("A", 1L),
+                            new StandbyRankResponse.ZoneRank("B", 5L)
+                    );
+        }
+
+        @Test
+        @DisplayName("본인 신청이 아니면 NOT_STANDBY_OWNER 예외가 발생한다.")
+        void rejectWhenNotOwner() {
+            // given
+            Standby standby = mock(Standby.class);
+            given(standbyRepository.findById(STANDBY_ID)).willReturn(Optional.of(standby));
+            given(standby.getUserId()).willReturn(999L);
+
+            // when & then
+            assertThatThrownBy(() -> standbyService.getStandbyRank(STANDBY_ID, USER_ID))
+                    .isInstanceOfSatisfying(
+                            BusinessException.class,
+                            exception -> assertThat(exception.getErrorCode())
+                                    .isEqualTo(StandbyErrorCode.NOT_STANDBY_OWNER)
+                    );
+        }
+
+        @Test
+        @DisplayName("WAITING 상태가 아니면(예: 취소됨) CANNOT_VIEW_RANK 예외가 발생한다.")
+        void rejectWhenNotWaiting() {
+            // given
+            Standby standby = mock(Standby.class);
+            given(standbyRepository.findById(STANDBY_ID)).willReturn(Optional.of(standby));
+            given(standby.getUserId()).willReturn(USER_ID);
+            given(standby.getStandbyStatus()).willReturn(StandbyStatus.CANCELLED);
+
+            // when & then
+            assertThatThrownBy(() -> standbyService.getStandbyRank(STANDBY_ID, USER_ID))
+                    .isInstanceOfSatisfying(
+                            BusinessException.class,
+                            exception -> assertThat(exception.getErrorCode())
+                                    .isEqualTo(StandbyErrorCode.CANNOT_VIEW_RANK)
+                    );
         }
     }
 }
