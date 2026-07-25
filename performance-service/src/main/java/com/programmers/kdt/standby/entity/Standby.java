@@ -114,13 +114,26 @@ public class Standby extends BaseTimeEntity {
     }
 
     public void cancel() {
-        if (standbyStatus == StandbyStatus.CANCELLED) {
+        if (isAlreadyCancelled()) {
             return;
         }
+        guardCancellable();
+        this.standbyStatus = StandbyStatus.CANCELLED;
+    }
+
+    private boolean isAlreadyCancelled() {
+        return standbyStatus == StandbyStatus.CANCELLED;
+    }
+
+    private void guardCancellable() {
         if (standbyStatus != StandbyStatus.WAITING && standbyStatus != StandbyStatus.HELD) {
             throw new BusinessException(StandbyErrorCode.CANNOT_CANCEL);
         }
-        this.standbyStatus = StandbyStatus.CANCELLED;
+    }
+
+    // 대기 순위 조회는 WAITING/HELD 상태에서만 허용 (취소된 신청 조회 불가)
+    public boolean canViewRank() {
+        return standbyStatus == StandbyStatus.WAITING || standbyStatus == StandbyStatus.HELD;
     }
 
     public String getMatchedZone() {
@@ -137,12 +150,10 @@ public class Standby extends BaseTimeEntity {
     // 지망 zone 중 하나만 취소. 매칭됐던(slot) zone을 취소하면 남은 zone에 대해 WAITING으로 되돌아간다.
     // 남은 zone이 없으면(매칭 zone이었든 아니든) 전체 취소로 전환된다.
     public void cancelZone(String zone) {
-        if (standbyStatus == StandbyStatus.CANCELLED) {
+        if (isAlreadyCancelled()) {
             return;
         }
-        if (standbyStatus != StandbyStatus.WAITING && standbyStatus != StandbyStatus.HELD) {
-            throw new BusinessException(StandbyErrorCode.CANNOT_CANCEL);
-        }
+        guardCancellable();
 
         boolean wasMatchedZone = Objects.equals(zone, getMatchedZone());
         removeZone(zone);

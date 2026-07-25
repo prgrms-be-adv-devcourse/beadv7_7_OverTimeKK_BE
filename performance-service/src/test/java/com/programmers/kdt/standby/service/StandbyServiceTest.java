@@ -422,7 +422,7 @@ class StandbyServiceTest {
             given(standbyRepository.findById(STANDBY_ID)).willReturn(Optional.of(standby));
             given(standby.getUserId()).willReturn(USER_ID);
             given(standby.getStandbyId()).willReturn(STANDBY_ID);
-            given(standby.getStandbyStatus()).willReturn(StandbyStatus.WAITING);
+            given(standby.canViewRank()).willReturn(true);
             given(standby.getZone1()).willReturn("A");
             given(standby.getZone2()).willReturn(null);
             given(standby.getZone3()).willReturn(null);
@@ -448,7 +448,7 @@ class StandbyServiceTest {
             given(standbyRepository.findById(STANDBY_ID)).willReturn(Optional.of(standby));
             given(standby.getUserId()).willReturn(USER_ID);
             given(standby.getStandbyId()).willReturn(STANDBY_ID);
-            given(standby.getStandbyStatus()).willReturn(StandbyStatus.WAITING);
+            given(standby.canViewRank()).willReturn(true);
             given(standby.getZone1()).willReturn("A");
             given(standby.getZone2()).willReturn("B");
             given(standby.getZone3()).willReturn(null);
@@ -478,7 +478,7 @@ class StandbyServiceTest {
             given(standbyRepository.findById(STANDBY_ID)).willReturn(Optional.of(standby));
             given(standby.getUserId()).willReturn(USER_ID);
             given(standby.getStandbyId()).willReturn(STANDBY_ID);
-            given(standby.getStandbyStatus()).willReturn(StandbyStatus.HELD);
+            given(standby.canViewRank()).willReturn(true);
             given(standby.getMatchedZone()).willReturn("A");
             given(standby.getZone1()).willReturn("A");
             given(standby.getZone2()).willReturn("B");
@@ -525,7 +525,7 @@ class StandbyServiceTest {
             Standby standby = mock(Standby.class);
             given(standbyRepository.findById(STANDBY_ID)).willReturn(Optional.of(standby));
             given(standby.getUserId()).willReturn(USER_ID);
-            given(standby.getStandbyStatus()).willReturn(StandbyStatus.CANCELLED);
+            given(standby.canViewRank()).willReturn(false);
 
             // when & then
             assertThatThrownBy(() -> standbyService.getStandbyRank(STANDBY_ID, USER_ID))

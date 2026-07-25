@@ -342,4 +342,35 @@ public class StandbyTest {
             assertThat(standby.getStandbyStatus()).isEqualTo(StandbyStatus.CANCELLED);
         }
     }
+
+    @Nested
+    @DisplayName("순위 조회 가능 여부(canViewRank)")
+    class CanViewRank {
+
+        @Test
+        @DisplayName("WAITING 상태면 조회 가능하다.")
+        void trueWhenWaiting() {
+            Standby standby = Standby.apply(1L, session, List.of("A"));
+
+            assertThat(standby.canViewRank()).isTrue();
+        }
+
+        @Test
+        @DisplayName("HELD 상태면 조회 가능하다.")
+        void trueWhenHeld() {
+            Standby standby = Standby.apply(1L, session, List.of("A"));
+            standby.hold("A");
+
+            assertThat(standby.canViewRank()).isTrue();
+        }
+
+        @Test
+        @DisplayName("CANCELLED 상태면 조회 불가능하다.")
+        void falseWhenCancelled() {
+            Standby standby = Standby.apply(1L, session, List.of("A"));
+            standby.cancel();
+
+            assertThat(standby.canViewRank()).isFalse();
+        }
+    }
 }

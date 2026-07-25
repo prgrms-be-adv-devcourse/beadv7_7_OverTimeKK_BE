@@ -33,6 +33,7 @@ public class StandbyService {
     private final PerformanceSeatPriceRepository performanceSeatPriceRepository;
     private final TicketRepository ticketRepository;
 
+
     public CreateStandbyResponse applyStandby(Long userId, Long performanceId, Long sessionNum, List<String> zones) {
         PerformanceSession session = findSession(performanceId, sessionNum);
 
@@ -50,7 +51,7 @@ public class StandbyService {
 
     public StandbyRankResponse getStandbyRank (Long standbyId, Long userId) {
         Standby standby = findOwnedStandby(standbyId, userId);
-        if (standby.getStandbyStatus() != StandbyStatus.WAITING && standby.getStandbyStatus() != StandbyStatus.HELD) {
+        if (!standby.canViewRank()) {
             throw new BusinessException(StandbyErrorCode.CANNOT_VIEW_RANK);
         }
         List<String> zones = Stream.of(standby.getZone1(),standby.getZone2(),standby.getZone3())
