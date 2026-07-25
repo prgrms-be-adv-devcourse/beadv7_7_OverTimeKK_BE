@@ -9,7 +9,6 @@ import com.programmers.kdt.performance.repository.PerformanceSessionRepository;
 import com.programmers.kdt.ticket.dto.CheckTicketHoldAvailableRequest;
 import com.programmers.kdt.ticket.dto.CheckTicketHoldAvailableResponse;
 import com.programmers.kdt.ticket.dto.CreateStandbyResponse;
-import com.programmers.kdt.standby.repository.StandbyRepository;
 import com.programmers.kdt.ticket.dto.SessionStartDateResponse;
 import com.programmers.kdt.ticket.dto.StandbyTicketRequest;
 import com.programmers.kdt.ticket.entity.Ticket;
@@ -82,6 +81,10 @@ public class TicketServiceImpl implements TicketService {
     public void releaseHoldTicket(Long ticketId) {
         Ticket ticket = getTicket(ticketId);
 
+        if (LocalDateTime.now().isAfter(ticket.getHoldExpiredAt())) {
+            throw new BusinessException(TicketErrorCode.HOLD_TICKET_NOT_EXPIRED);
+        }
+
         boolean isAvailableInZone = ticketRepository.existsByPerformanceIdAndSessionNumAndTicketStatusAndZone(ticket.getPerformanceId(), ticket.getSessionNum(), TicketStatus.AVAILABLE, ticket.getZone());
         log.info("{} 공연 {}회차 {} 자리 매진이 아닌가? {}", ticket.getPerformanceId(), ticket.getSessionNum(), ticket.getZone(), isAvailableInZone);
 
@@ -112,7 +115,7 @@ public class TicketServiceImpl implements TicketService {
          * */
 
         return ticket.getTicketStatus() == TicketStatus.CANCELED &&
-               ticket.getStandbyUserId() == userId &&
+               ticket.getStandbyUserId().equals(userId) &&
                ticket.getStandbyExpiredAt().isBefore(LocalDateTime.now())
         ;
     }

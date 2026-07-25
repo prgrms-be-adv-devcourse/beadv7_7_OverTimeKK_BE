@@ -37,7 +37,7 @@ public class TicketController {
         return ApiResponse.success(response);
     }
 
-    @PutMapping("/status")
+    @PutMapping("/status/hold")
     public ApiResponse<CheckTicketHoldAvailableResponse> checkTicketHoldAvailable(@Valid @RequestBody CheckTicketHoldAvailableRequest request) {
         CheckTicketHoldAvailableResponse response = ticketService.checkTicketHoldStatus(request);
         return ApiResponse.success(response);
