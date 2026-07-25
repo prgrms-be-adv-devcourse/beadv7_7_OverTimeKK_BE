@@ -8,5 +8,5 @@ public record StandbyRankResponse (
 )
 
 {
-    public record ZoneRank(String zone, long rank) {}
+    public record ZoneRank(String zone, long rank, boolean isHeld) {}
 }

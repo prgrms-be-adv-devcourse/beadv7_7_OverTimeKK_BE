@@ -51,18 +51,23 @@ public class StandbyService {
 
     public StandbyRankResponse getStandbyRank (Long standbyId, Long userId) {
         Standby standby = findOwnedStandby(standbyId, userId);
-        if (standby.getStandbyStatus() != StandbyStatus.WAITING) {
+        if (standby.getStandbyStatus() != StandbyStatus.WAITING && standby.getStandbyStatus() != StandbyStatus.HELD) {
             throw new BusinessException(StandbyErrorCode.CANNOT_VIEW_RANK);
         }
         List<String> zones = Stream.of(standby.getZone1(),standby.getZone2(),standby.getZone3())
                 .filter(Objects::nonNull)
                 .toList();
+        String matchedZone = standby.getMatchedZone();
         //  쿼리로 순위 각각 조회
         List<StandbyRankResponse.ZoneRank> zoneRanks = new ArrayList<>();
         for(String zone : zones) {
+            if (zone.equals(matchedZone)) {
+                zoneRanks.add(new StandbyRankResponse.ZoneRank(zone, 0, true));
+                continue;
+            }
             long rankCount = standbyRepository.countRankCount(
                     standby.getPerformanceSession(), zone, StandbyStatus.WAITING, standby.getReservedAt());
-            zoneRanks.add(new StandbyRankResponse.ZoneRank(zone, rankCount+1)
+            zoneRanks.add(new StandbyRankResponse.ZoneRank(zone, rankCount+1, false)
             );
 
         }

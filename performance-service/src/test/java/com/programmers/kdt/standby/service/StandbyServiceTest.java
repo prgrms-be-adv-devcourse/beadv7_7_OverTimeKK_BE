@@ -444,7 +444,7 @@ class StandbyServiceTest {
             // then
             assertThat(response.standbyId()).isEqualTo(STANDBY_ID);
             assertThat(response.zoneRanks())
-                    .containsExactly(new StandbyRankResponse.ZoneRank("A", 3L));
+                    .containsExactly(new StandbyRankResponse.ZoneRank("A", 3L, false));
         }
 
         @Test
@@ -472,9 +472,40 @@ class StandbyServiceTest {
             // then
             assertThat(response.zoneRanks())
                     .containsExactly(
-                            new StandbyRankResponse.ZoneRank("A", 1L),
-                            new StandbyRankResponse.ZoneRank("B", 5L)
+                            new StandbyRankResponse.ZoneRank("A", 1L, false),
+                            new StandbyRankResponse.ZoneRank("B", 5L, false)
                     );
+        }
+
+        @Test
+        @DisplayName("HELD 상태의 경우에도, 나머지 대기상태 정상 순위로 반환.")
+        void returnsGetHeldTest() {
+            // given - A매칭(HELD), B는 대기(3번째)
+            Standby standby = mock(Standby.class);
+            given(standbyRepository.findById(STANDBY_ID)).willReturn(Optional.of(standby));
+            given(standby.getUserId()).willReturn(USER_ID);
+            given(standby.getStandbyId()).willReturn(STANDBY_ID);
+            given(standby.getStandbyStatus()).willReturn(StandbyStatus.HELD);
+            given(standby.getMatchedZone()).willReturn("A");
+            given(standby.getZone1()).willReturn("A");
+            given(standby.getZone2()).willReturn("B");
+            given(standby.getZone3()).willReturn(null);
+            given(standby.getReservedAt()).willReturn(reservedAt);
+            given(standby.getPerformanceSession()).willReturn(session);
+            given(standbyRepository.countRankCount(session, "B", StandbyStatus.WAITING, reservedAt))
+                    .willReturn(2L);
+
+            // when
+            StandbyRankResponse response = standbyService.getStandbyRank(STANDBY_ID, USER_ID);
+
+            // then
+            assertThat(response.zoneRanks())
+                    .containsExactly(
+                            new StandbyRankResponse.ZoneRank("A", 0L, true),
+                            new StandbyRankResponse.ZoneRank("B", 3L, false)
+                    );
+            verify(standbyRepository, never())
+                    .countRankCount(eq(session), eq("A"), any(), any());
         }
 
         @Test
