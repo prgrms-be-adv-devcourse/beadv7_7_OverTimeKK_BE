@@ -82,9 +82,11 @@ public class Ticket extends BaseTimeEntity {
 
     public void releaseToAvailable() {
         this.ticketStatus = TicketStatus.AVAILABLE;
+        this.buyUserId = null;
     }
 
     public void releaseToStandby() {
         this.ticketStatus = TicketStatus.CANCELED;
+        this.buyUserId = null;
     }
 }

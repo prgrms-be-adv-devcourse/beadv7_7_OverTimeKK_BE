@@ -81,7 +81,7 @@ public class TicketServiceImpl implements TicketService {
     public void releaseHoldTicket(Long ticketId) {
         Ticket ticket = getTicket(ticketId);
 
-        if (LocalDateTime.now().isAfter(ticket.getHoldExpiredAt())) {
+        if (LocalDateTime.now().isBefore(ticket.getHoldExpiredAt())) {
             throw new BusinessException(TicketErrorCode.HOLD_TICKET_NOT_EXPIRED);
         }
 
