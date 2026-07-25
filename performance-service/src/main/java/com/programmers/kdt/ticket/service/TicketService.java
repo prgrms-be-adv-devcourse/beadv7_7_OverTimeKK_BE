@@ -1,20 +1,19 @@
 package com.programmers.kdt.ticket.service;
 
-import com.programmers.kdt.ticket.repository.TicketRepository;
-import lombok.RequiredArgsConstructor;
-import org.springframework.stereotype.Service;
+import com.programmers.kdt.ticket.dto.CheckTicketHoldAvailableRequest;
+import com.programmers.kdt.ticket.dto.CheckTicketHoldAvailableResponse;
+import com.programmers.kdt.ticket.dto.SessionStartDateResponse;
+import com.programmers.kdt.ticket.dto.StandbyTicketRequest;
 
-@Service
-@RequiredArgsConstructor
-public class TicketService {
+public interface TicketService {
+    CreateStandbyResponse issueStandby(Long userId, Long sessionNum, String zone);
 
-    private final TicketRepository ticketRepository;
+    SessionStartDateResponse getSessionStartDate(Long ticketId);
 
-    public void holdSeat(Long ticketId, Long userId) {
-        // TODO
-    }
+    /* 좌석점유 상태 확인, 점유가능한 상태면 hold하고 만료시간 return */
+    CheckTicketHoldAvailableResponse checkTicketHoldStatus(CheckTicketHoldAvailableRequest request);
 
-    public void releaseHold(Long ticketId) {
-        // TODO
-    }
+    void releaseHoldTicket(Long ticketId);
+
+    void standbyTicket(StandbyTicketRequest request);
 }

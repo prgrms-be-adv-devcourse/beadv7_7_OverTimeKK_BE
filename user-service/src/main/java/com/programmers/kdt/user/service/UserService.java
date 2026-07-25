@@ -1,6 +1,7 @@
 package com.programmers.kdt.user.service;
 
 import com.programmers.kdt.common.exception.BusinessException;
+import com.programmers.kdt.user.dto.SignUpBusinessRequest;
 import com.programmers.kdt.user.dto.SignUpIndividualRequest;
 import com.programmers.kdt.user.dto.SignUpUserResponse;
 import com.programmers.kdt.user.entity.User;
@@ -32,12 +33,31 @@ public class UserService {
         return SignUpUserResponse.from(saved);
     }
 
+    @Transactional
+    public SignUpUserResponse signUpBusiness(SignUpBusinessRequest request) {
+        validateDuplicate(request.username(), request.email());
+        validateDuplicateBusinessNumber(request.businessNumber());
+
+        String encodedPassword = passwordEncoder.encode(request.password());
+        User user = User.signUpBusiness(request.username(), request.email(), encodedPassword,
+                request.businessName(), request.businessNumber());
+        User saved = userRepository.save(user);
+
+        return SignUpUserResponse.from(saved);
+    }
+
     private void validateDuplicate(String username, String email) {
         if (userRepository.existsByUsername(username)) {
             throw new BusinessException(UserErrorCode.DUPLICATE_USERNAME);
         }
         if (userRepository.existsByEmail(email)) {
             throw new BusinessException(UserErrorCode.DUPLICATE_EMAIL);
+        }
+    }
+
+    private void validateDuplicateBusinessNumber(String businessNumber) {
+        if (userRepository.existsByBusinessNumber(businessNumber)) {
+            throw new BusinessException(UserErrorCode.DUPLICATE_BUSINESS_NUMBER);
         }
     }
 

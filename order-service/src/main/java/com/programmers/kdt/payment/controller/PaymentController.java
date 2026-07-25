@@ -3,13 +3,17 @@ package com.programmers.kdt.payment.controller;
 import com.programmers.kdt.common.response.ApiResponse;
 import com.programmers.kdt.payment.dto.*;
 import com.programmers.kdt.payment.service.PaymentService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import java.net.URI;
 
 @RestController
 @RequestMapping("/api/payments")
@@ -20,10 +24,9 @@ public class PaymentController {
 
     // 결제 요청
     @PostMapping("/pay")
-    @ResponseStatus(HttpStatus.CREATED)
-    public ApiResponse<CreatePaymentResponse> pay(@RequestBody CreatePaymentRequest request) {
+    public ResponseEntity<ApiResponse<CreatePaymentResponse>> pay(@Valid @RequestBody CreatePaymentRequest request) {
         CreatePaymentResponse response = paymentService.pay(request);
-        return ApiResponse.success(response);
+        return ResponseEntity.created(URI.create("/api/payments/" + response.paymentId())).body(ApiResponse.success(response));
     }
 
     // 결제 승인
@@ -56,24 +59,14 @@ public class PaymentController {
         return ApiResponse.success(response);
     }
 
-    // 결제 전액 취소
-    @PostMapping("/{paymentId}/cancel")
-    public ApiResponse<CancelPaymentResponse> cancel(
+    // 결제 환불
+    @PostMapping("/{paymentId}/refund")
+    public ResponseEntity<ApiResponse<RefundPaymentResponse>> refund(
             @PathVariable Long paymentId,
-            @RequestBody CancelPaymentRequest request) {
+            @RequestBody RefundPaymentRequest request) {
 
-        CancelPaymentResponse response = paymentService.cancel(paymentId, request);
-        return ApiResponse.success(response);
-    }
-
-    // 결제 부분 취소
-    @PostMapping("/{paymentId}/partial-cancel")
-    public ApiResponse<PartialCancelPaymentResponse> partialCancel(
-            @PathVariable Long paymentId,
-            @RequestBody PartialCancelPaymentRequest request) {
-
-        PartialCancelPaymentResponse response = paymentService.partialCancel(paymentId, request);
-        return ApiResponse.success(response);
+        RefundPaymentResponse response = paymentService.refund(paymentId, request);
+        return ResponseEntity.created(URI.create("/api/payments/" + response.paymentId())).body(ApiResponse.success(response));
     }
 
     @GetMapping("/{paymentId}/refunds")
