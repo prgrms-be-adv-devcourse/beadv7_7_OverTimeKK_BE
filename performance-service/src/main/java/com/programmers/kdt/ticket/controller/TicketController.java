@@ -5,6 +5,7 @@ import com.programmers.kdt.ticket.dto.CheckTicketHoldAvailableRequest;
 import com.programmers.kdt.ticket.dto.CheckTicketHoldAvailableResponse;
 import com.programmers.kdt.ticket.dto.CreateStandbyResponse;
 import com.programmers.kdt.ticket.dto.SessionStartDateResponse;
+import com.programmers.kdt.ticket.dto.StandbyTicketRequest;
 import com.programmers.kdt.ticket.service.TicketServiceImpl;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -40,5 +41,17 @@ public class TicketController {
     public ApiResponse<CheckTicketHoldAvailableResponse> checkTicketHoldAvailable(@Valid @RequestBody CheckTicketHoldAvailableRequest request) {
         CheckTicketHoldAvailableResponse response = ticketService.checkTicketHoldStatus(request);
         return ApiResponse.success(response);
+    }
+
+    @PutMapping("/status/{ticketId}/release")
+    public ApiResponse<?> releaseHoldTicket(@PathVariable Long ticketId) {
+        ticketService.releaseHoldTicket(ticketId);
+        return ApiResponse.success(null);
+    }
+
+    @PutMapping("/standby")
+    public ApiResponse<?> standbyTicket(@Valid @RequestBody StandbyTicketRequest request) {
+        ticketService.standbyTicket(request);
+        return ApiResponse.success(null);
     }
 }
