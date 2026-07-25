@@ -18,7 +18,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.data.domain.Pageable;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -229,7 +228,7 @@ class StandbyServiceTest {
     class TryMatch {
 
         @Test
-        @DisplayName("해당 zone 대기자가 있으면 repository가 돌려준 목록의 첫 번째(FIFO 선두)가 매칭되어 HELD로 바뀐다.")
+        @DisplayName("해당 zone 대기자가 있으면 repository가 FIFO 선두 1명을 HELD로 바뀐다.")
         void matchesEarliestCandidate() {
             // given - (예약취소 혹은 매칭 취소로 인해) match 콜이 왔다고 가정, 그 중 첫 번째가 매칭 대상
             Standby earliest = mock(Standby.class);
@@ -238,9 +237,8 @@ class StandbyServiceTest {
             given(earliest.getStandbyId()).willReturn(100L);
             given(performanceSessionRepository.findById(sessionId()))
                     .willReturn(Optional.of(session));
-            given(standbyRepository.findMatchCandidates(
-                    eq(session), eq("A"), eq(StandbyStatus.WAITING), any(Pageable.class)))
-                    .willReturn(List.of(earliest, later));
+            given(standbyRepository.findMatchCandidate(session, "A", StandbyStatus.WAITING))
+                    .willReturn(Optional.of(earliest));
 
             // when
             Optional<Long> matchedId = standbyService.tryMatch(PERFORMANCE_ID, SESSION_NUM, "A");
@@ -257,9 +255,8 @@ class StandbyServiceTest {
             // given
             given(performanceSessionRepository.findById(sessionId()))
                     .willReturn(Optional.of(session));
-            given(standbyRepository.findMatchCandidates(
-                    eq(session), eq("A"), eq(StandbyStatus.WAITING), any(Pageable.class)))
-                    .willReturn(List.of());
+            given(standbyRepository.findMatchCandidate(session, "A", StandbyStatus.WAITING))
+                    .willReturn(Optional.empty());
 
             // when
             Optional<Long> matchedId = standbyService.tryMatch(PERFORMANCE_ID, SESSION_NUM, "A");
@@ -290,7 +287,7 @@ class StandbyServiceTest {
             // then
             verify(standby).cancel();
             verify(standbyRepository, never())
-                    .findMatchCandidates(any(), any(), any(), any());
+                    .findMatchCandidate(any(), any(), any());
         }
 
         @Test
@@ -303,17 +300,15 @@ class StandbyServiceTest {
             given(cancelled.getStandbyStatus()).willReturn(StandbyStatus.HELD);
             given(cancelled.getMatchedZone()).willReturn("A");
             given(cancelled.getPerformanceSession()).willReturn(session);
-            given(standbyRepository.findMatchCandidates(
-                    eq(session), eq("A"), eq(StandbyStatus.WAITING), any(Pageable.class)))
-                    .willReturn(List.of());
+            given(standbyRepository.findMatchCandidate(session, "A", StandbyStatus.WAITING))
+                    .willReturn(Optional.empty());
 
             // when
             standbyService.cancelStandby(STANDBY_ID, USER_ID);
 
             // then
             verify(cancelled).cancel();
-            verify(standbyRepository).findMatchCandidates(
-                    eq(session), eq("A"), eq(StandbyStatus.WAITING), any(Pageable.class));
+            verify(standbyRepository).findMatchCandidate(session, "A", StandbyStatus.WAITING);
         }
 
         @Test
@@ -370,7 +365,7 @@ class StandbyServiceTest {
             // then
             verify(standby).cancelZone("B");
             verify(standbyRepository, never())
-                    .findMatchCandidates(any(), any(), any(), any());
+                    .findMatchCandidate(any(), any(), any());
         }
 
         @Test
@@ -382,17 +377,15 @@ class StandbyServiceTest {
             given(standby.getUserId()).willReturn(USER_ID);
             given(standby.getMatchedZone()).willReturn("B");
             given(standby.getPerformanceSession()).willReturn(session);
-            given(standbyRepository.findMatchCandidates(
-                    eq(session), eq("B"), eq(StandbyStatus.WAITING), any(Pageable.class)))
-                    .willReturn(List.of());
+            given(standbyRepository.findMatchCandidate(session, "B", StandbyStatus.WAITING))
+                    .willReturn(Optional.empty());
 
             // when
             standbyService.cancelZone(STANDBY_ID, USER_ID, "B");
 
             // then
             verify(standby).cancelZone("B");
-            verify(standbyRepository).findMatchCandidates(
-                    eq(session), eq("B"), eq(StandbyStatus.WAITING), any(Pageable.class));
+            verify(standbyRepository).findMatchCandidate(session, "B", StandbyStatus.WAITING);
         }
 
         @Test

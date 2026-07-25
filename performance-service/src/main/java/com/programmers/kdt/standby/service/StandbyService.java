@@ -14,7 +14,6 @@ import com.programmers.kdt.standby.exception.StandbyErrorCode;
 import com.programmers.kdt.standby.repository.StandbyRepository;
 import com.programmers.kdt.ticket.repository.TicketRepository;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -100,15 +99,12 @@ public class StandbyService {
     }
 
     private Optional<Long> matchNextCandidate(PerformanceSession session, String zone) {
-        List<Standby> candidates = standbyRepository
-                .findMatchCandidates(session, zone, StandbyStatus.WAITING, PageRequest.of(0, 1));
-        if (candidates.isEmpty()) {
-            return Optional.empty();
-        }
-
-        Standby matched = candidates.get(0);
-        matched.hold(zone);
-        return Optional.of(matched.getStandbyId());
+        return standbyRepository
+                .findMatchCandidate(session, zone, StandbyStatus.WAITING)
+                .map(matched -> {
+                    matched.hold(zone);
+                    return matched.getStandbyId();
+                });
     }
 
     private PerformanceSession findSession(Long performanceId, Long sessionNum) {
