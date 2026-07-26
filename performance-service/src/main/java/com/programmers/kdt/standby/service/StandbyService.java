@@ -104,19 +104,19 @@ public class StandbyService {
                 .orElseThrow(() -> new BusinessException(TicketErrorCode.TICKET_NOT_FOUND, ticketId));
         PerformanceSession session = findSession(ticket.getPerformanceId(), ticket.getSessionNum());
 
-        return matchNextCandidate(session, ticket.getZone())
-                .map(matched -> {
-                    LocalDateTime standbyExpiredAt = matched.getHeldAt().plusMinutes(TimeLimits.standbyHoldTicket30Min);
-                    ticketClient.notifyMatched(ticketId, matched.getUserId(), standbyExpiredAt);
-                    return matched.getStandbyId();
-                });
+        return matchNextCandidate(session, ticket.getZone(), ticketId)
+                .map(Standby::getStandbyId);
     }
 
-    private Optional<Standby> matchNextCandidate(PerformanceSession session, String zone) {
+    // 매칭 성사 시 hold() 처리와 ticket 알림
+    // 재매칭(취소로 인한)에서는 취소된 standby가 들고 있던 값을 그대로 이어받는다.
+    private Optional<Standby> matchNextCandidate(PerformanceSession session, String zone, Long ticketId) {
         return standbyRepository
                 .findMatchCandidate(session, zone, StandbyStatus.WAITING)
                 .map(matched -> {
-                    matched.hold(zone);
+                    matched.hold(zone, ticketId);
+                    LocalDateTime standbyExpiredAt = matched.getHeldAt().plusMinutes(TimeLimits.standbyHoldTicket30Min);
+                    ticketClient.notifyMatched(ticketId, matched.getUserId(), standbyExpiredAt);
                     return matched;
                 });
     }
@@ -133,12 +133,13 @@ public class StandbyService {
 
         boolean wasHeld = standby.getStandbyStatus() == StandbyStatus.HELD;
         String matchedZone = standby.getMatchedZone();
+        Long ticketId = standby.getTicketId();
         PerformanceSession session = standby.getPerformanceSession();
 
         standby.cancel();
 
         if (wasHeld) {
-            matchNextCandidate(session, matchedZone);
+            matchNextCandidate(session, matchedZone, ticketId);
         }
     }
 
@@ -147,12 +148,13 @@ public class StandbyService {
         Standby standby = findOwnedStandby(standbyId, userId);
 
         boolean wasMatchedZone = zone.equals(standby.getMatchedZone());
+        Long ticketId = standby.getTicketId();
         PerformanceSession session = standby.getPerformanceSession();
 
         standby.cancelZone(zone);
 
         if (wasMatchedZone) {
-            matchNextCandidate(session, zone);
+            matchNextCandidate(session, zone, ticketId);
         }
     }
 
