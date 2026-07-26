@@ -5,11 +5,13 @@ import com.programmers.kdt.performance.entity.PerformanceSession;
 import com.programmers.kdt.performance.entity.PerformanceSessionId;
 import com.programmers.kdt.performance.repository.PerformanceSeatPriceRepository;
 import com.programmers.kdt.performance.repository.PerformanceSessionRepository;
+import com.programmers.kdt.standby.client.TicketClient;
 import com.programmers.kdt.standby.entity.Standby;
 import com.programmers.kdt.standby.entity.StandbyStatus;
 import com.programmers.kdt.standby.dto.StandbyRankResponse;
 import com.programmers.kdt.standby.exception.StandbyErrorCode;
 import com.programmers.kdt.standby.repository.StandbyRepository;
+import com.programmers.kdt.ticket.entity.Ticket;
 import com.programmers.kdt.ticket.repository.TicketRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -46,6 +48,9 @@ class StandbyServiceTest {
 
     @Mock
     private TicketRepository ticketRepository;
+
+    @Mock
+    private TicketClient ticketClient;
 
     @InjectMocks
     private StandbyService standbyService;
@@ -224,45 +229,62 @@ class StandbyServiceTest {
     }
 
     @Nested
-    @DisplayName("매칭(tryMatch) - zone에 자리가 났을 때(대기1순위일떄) 대기자 선정")
+    @DisplayName("매칭(tryMatch) - ticket이 좌석을 대기표로 전환한 직후 호출")
     class TryMatch {
 
-        @Test
-        @DisplayName("해당 zone 대기자가 있으면 repository가 FIFO 선두 1명을 HELD로 바뀐다.")
-        void matchesEarliestCandidate() {
-            // given - (예약취소 혹은 매칭 취소로 인해) match 콜이 왔다고 가정, 그 중 첫 번째가 매칭 대상
-            Standby earliest = mock(Standby.class);
-            Standby later = mock(Standby.class);
+        private static final Long TICKET_ID = 500L;
 
+        @Test
+        @DisplayName("해당 zone 대기자가 있으면 FIFO 선두 1명이 HELD로 바뀌고 ticket에 매칭 결과를 알린다.")
+        void matchesEarliestCandidate() {
+            // given
+            Ticket ticket = mock(Ticket.class);
+            given(ticket.getPerformanceId()).willReturn(PERFORMANCE_ID);
+            given(ticket.getSessionNum()).willReturn(SESSION_NUM);
+            given(ticket.getZone()).willReturn("A");
+            given(ticketRepository.findById(TICKET_ID)).willReturn(Optional.of(ticket));
+
+            Standby earliest = mock(Standby.class);
+            LocalDateTime heldAt = LocalDateTime.now();
             given(earliest.getStandbyId()).willReturn(100L);
+            given(earliest.getUserId()).willReturn(USER_ID);
+            given(earliest.getHeldAt()).willReturn(heldAt);
+
             given(performanceSessionRepository.findById(sessionId()))
                     .willReturn(Optional.of(session));
             given(standbyRepository.findMatchCandidate(session, "A", StandbyStatus.WAITING))
                     .willReturn(Optional.of(earliest));
 
             // when
-            Optional<Long> matchedId = standbyService.tryMatch(PERFORMANCE_ID, SESSION_NUM, "A");
+            Optional<Long> matchedId = standbyService.tryMatch(TICKET_ID);
 
             // then
             assertThat(matchedId).contains(100L);
             verify(earliest).hold("A");
-            verify(later, never()).hold(any());
+            verify(ticketClient).notifyMatched(TICKET_ID, USER_ID, heldAt.plusMinutes(30));
         }
 
         @Test
-        @DisplayName("해당 zone 대기자가 없으면 매칭되지 않고 빈 값을 반환한다.")
+        @DisplayName("해당 zone 대기자가 없으면 매칭되지 않고, ticket에 알리지도 않는다.")
         void returnsEmptyWhenNoCandidate() {
             // given
+            Ticket ticket = mock(Ticket.class);
+            given(ticket.getPerformanceId()).willReturn(PERFORMANCE_ID);
+            given(ticket.getSessionNum()).willReturn(SESSION_NUM);
+            given(ticket.getZone()).willReturn("A");
+            given(ticketRepository.findById(TICKET_ID)).willReturn(Optional.of(ticket));
+
             given(performanceSessionRepository.findById(sessionId()))
                     .willReturn(Optional.of(session));
             given(standbyRepository.findMatchCandidate(session, "A", StandbyStatus.WAITING))
                     .willReturn(Optional.empty());
 
             // when
-            Optional<Long> matchedId = standbyService.tryMatch(PERFORMANCE_ID, SESSION_NUM, "A");
+            Optional<Long> matchedId = standbyService.tryMatch(TICKET_ID);
 
             // then
             assertThat(matchedId).isEmpty();
+            verify(ticketClient, never()).notifyMatched(any(), any(), any());
         }
     }
 
