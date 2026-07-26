@@ -13,11 +13,13 @@ import com.programmers.kdt.ticket.dto.SessionStartDateResponse;
 import com.programmers.kdt.ticket.dto.StandbyTicketRequest;
 import com.programmers.kdt.ticket.entity.Ticket;
 import com.programmers.kdt.ticket.entity.TicketStatus;
+import com.programmers.kdt.ticket.event.TryMatchEvent;
 import com.programmers.kdt.ticket.exception.TicketErrorCode;
 import com.programmers.kdt.ticket.repository.TicketRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.NonNull;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -31,6 +33,8 @@ public class TicketServiceImpl implements TicketService {
 
     private final TicketRepository ticketRepository;
     private final PerformanceSessionRepository sessionRepository;
+
+    private final ApplicationEventPublisher eventPublisher;
 
     @Override
     public CreateStandbyResponse issueStandby(Long userId, Long sessionNum, String zone) {
@@ -83,6 +87,7 @@ public class TicketServiceImpl implements TicketService {
             ticket.releaseToAvailable();
         } else {
             ticket.releaseToStandby();
+            eventPublisher.publishEvent(new TryMatchEvent(ticketId));
         }
     }
 
