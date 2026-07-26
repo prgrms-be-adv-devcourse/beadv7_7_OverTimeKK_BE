@@ -1,4 +1,4 @@
-﻿package com.programmers.kdt.standby.event;
+package com.programmers.kdt.standby.event;
 
 import com.programmers.kdt.standby.service.StandbyService;
 import com.programmers.kdt.ticket.event.TryMatchEvent;
