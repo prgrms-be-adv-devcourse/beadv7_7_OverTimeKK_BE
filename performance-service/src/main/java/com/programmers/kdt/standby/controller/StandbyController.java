@@ -4,7 +4,6 @@ import com.programmers.kdt.common.response.ApiResponse;
 import com.programmers.kdt.standby.dto.CreateStandbyRequest;
 import com.programmers.kdt.standby.dto.CreateStandbyResponse;
 import com.programmers.kdt.standby.dto.StandbyRankResponse;
-import com.programmers.kdt.standby.dto.TryMatchRequest;
 import com.programmers.kdt.standby.service.StandbyService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -26,12 +25,6 @@ public class StandbyController {
                 request.userId(), request.performanceId(), request.sessionNum(), request.zones());
         return ResponseEntity.created(URI.create("/api/standby/" + response.standbyId()))
                 .body(ApiResponse.success(response));
-    }
-
-    @PostMapping("/match")
-    public ApiResponse<?> postStandbyMatch(@Valid @RequestBody TryMatchRequest request) {
-        standbyService.tryMatch(request.ticketId());
-        return ApiResponse.success(null);
     }
 
     @GetMapping("/{standbyId}")

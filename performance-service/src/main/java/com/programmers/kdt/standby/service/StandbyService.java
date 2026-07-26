@@ -7,17 +7,18 @@ import com.programmers.kdt.performance.entity.PerformanceSessionId;
 import com.programmers.kdt.performance.exception.PerformanceErrorCode;
 import com.programmers.kdt.performance.repository.PerformanceSeatPriceRepository;
 import com.programmers.kdt.performance.repository.PerformanceSessionRepository;
-import com.programmers.kdt.standby.client.TicketClient;
 import com.programmers.kdt.standby.dto.CreateStandbyResponse;
 import com.programmers.kdt.standby.dto.StandbyRankResponse;
 import com.programmers.kdt.standby.entity.Standby;
 import com.programmers.kdt.standby.entity.StandbyStatus;
+import com.programmers.kdt.standby.event.StandbyTicketEvent;
 import com.programmers.kdt.standby.exception.StandbyErrorCode;
 import com.programmers.kdt.standby.repository.StandbyRepository;
 import com.programmers.kdt.ticket.entity.Ticket;
 import com.programmers.kdt.ticket.exception.TicketErrorCode;
 import com.programmers.kdt.ticket.repository.TicketRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -37,7 +38,7 @@ public class StandbyService {
     private final PerformanceSessionRepository performanceSessionRepository;
     private final PerformanceSeatPriceRepository performanceSeatPriceRepository;
     private final TicketRepository ticketRepository;
-    private final TicketClient ticketClient;
+    private final ApplicationEventPublisher eventPublisher;
 
 
     public CreateStandbyResponse applyStandby(Long userId, Long performanceId, Long sessionNum, List<String> zones) {
@@ -116,7 +117,8 @@ public class StandbyService {
                 .map(matched -> {
                     matched.hold(zone, ticketId);
                     LocalDateTime standbyExpiredAt = matched.getHeldAt().plusMinutes(TimeLimits.standbyHoldTicket30Min);
-                    ticketClient.notifyMatched(ticketId, matched.getUserId(), standbyExpiredAt);
+                    eventPublisher.publishEvent(
+                            new StandbyTicketEvent(ticketId, matched.getUserId(), standbyExpiredAt));
                     return matched;
                 });
     }

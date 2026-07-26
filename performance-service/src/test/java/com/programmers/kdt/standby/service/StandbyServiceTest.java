@@ -5,10 +5,11 @@ import com.programmers.kdt.performance.entity.PerformanceSession;
 import com.programmers.kdt.performance.entity.PerformanceSessionId;
 import com.programmers.kdt.performance.repository.PerformanceSeatPriceRepository;
 import com.programmers.kdt.performance.repository.PerformanceSessionRepository;
-import com.programmers.kdt.standby.client.TicketClient;
 import com.programmers.kdt.standby.entity.Standby;
 import com.programmers.kdt.standby.entity.StandbyStatus;
 import com.programmers.kdt.standby.dto.StandbyRankResponse;
+import com.programmers.kdt.standby.event.StandbyTicketEvent;
+import org.springframework.context.ApplicationEventPublisher;
 import com.programmers.kdt.standby.exception.StandbyErrorCode;
 import com.programmers.kdt.standby.repository.StandbyRepository;
 import com.programmers.kdt.ticket.entity.Ticket;
@@ -50,7 +51,7 @@ class StandbyServiceTest {
     private TicketRepository ticketRepository;
 
     @Mock
-    private TicketClient ticketClient;
+    private ApplicationEventPublisher eventPublisher;
 
     @InjectMocks
     private StandbyService standbyService;
@@ -261,7 +262,8 @@ class StandbyServiceTest {
             // then
             assertThat(matchedId).contains(100L);
             verify(earliest).hold("A", TICKET_ID);
-            verify(ticketClient).notifyMatched(TICKET_ID, USER_ID, heldAt.plusMinutes(30));
+            verify(eventPublisher)
+                    .publishEvent(new StandbyTicketEvent(TICKET_ID, USER_ID, heldAt.plusMinutes(30)));
         }
 
         @Test
@@ -284,7 +286,7 @@ class StandbyServiceTest {
 
             // then
             assertThat(matchedId).isEmpty();
-            verify(ticketClient, never()).notifyMatched(any(), any(), any());
+            verify(eventPublisher, never()).publishEvent(any());
         }
     }
 
@@ -356,9 +358,10 @@ class StandbyServiceTest {
             // when
             standbyService.cancelStandby(STANDBY_ID, USER_ID);
 
-            // then - 새로 매칭된 next는 같은 ticketId로 hold되고, 그 ticketId 그대로 ticket에 알림이 간다.
+            // then - 새로 매칭된 next는 같은 ticketId로 hold되고, 그 ticketId 그대로 이벤트가 발행된다.
             verify(next).hold("A", ticketId);
-            verify(ticketClient).notifyMatched(ticketId, 999L, heldAt.plusMinutes(30));
+            verify(eventPublisher)
+                    .publishEvent(new StandbyTicketEvent(ticketId, 999L, heldAt.plusMinutes(30)));
         }
 
         @Test
@@ -462,7 +465,8 @@ class StandbyServiceTest {
 
             // then
             verify(next).hold("B", ticketId);
-            verify(ticketClient).notifyMatched(ticketId, 999L, heldAt.plusMinutes(30));
+            verify(eventPublisher)
+                    .publishEvent(new StandbyTicketEvent(ticketId, 999L, heldAt.plusMinutes(30)));
         }
 
         @Test

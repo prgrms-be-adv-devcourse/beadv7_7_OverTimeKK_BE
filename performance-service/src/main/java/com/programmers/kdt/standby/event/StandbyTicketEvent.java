@@ -1,10 +1,10 @@
-package com.programmers.kdt.standby.dto;
+package com.programmers.kdt.standby.event;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
 
 import java.time.LocalDateTime;
 
-public record StandbyTicketRequest(
+public record StandbyTicketEvent(
         Long ticketId,
         Long standbyUserId,
 
