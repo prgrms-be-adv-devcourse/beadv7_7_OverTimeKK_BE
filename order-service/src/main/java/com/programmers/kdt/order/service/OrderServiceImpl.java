@@ -2,7 +2,7 @@ package com.programmers.kdt.order.service;
 
 import com.programmers.kdt.common.exception.BusinessException;
 import com.programmers.kdt.order.client.TicketClient;
-import com.programmers.kdt.order.client.TicketHoldResult;
+import com.programmers.kdt.order.dto.TicketHoldResult;
 import com.programmers.kdt.order.client.TicketInfo;
 import com.programmers.kdt.order.dto.*;
 import com.programmers.kdt.order.entity.Order;
@@ -14,12 +14,10 @@ import com.programmers.kdt.order.repository.OrderRepository;
 import com.programmers.kdt.payment.dto.RefundPaymentRequest;
 import com.programmers.kdt.payment.service.PaymentService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.cglib.core.Local;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -36,13 +34,14 @@ public class OrderServiceImpl implements OrderService {
     @Transactional
     public CreateOrderResponse createOrder(CreateOrderRequest request) {
         // 존재하는 좌석인지, 좌석 점유 여부 확인 및 점유 요청
-       TicketHoldResult holdTicket = ticketClient.holdSeat(request.ticketId(), request.userId()) ; // 추후 ticketService
+        TicketHoldRequest ticketRequest = TicketHoldRequest.from(request);
+        TicketHoldResult holdTicket = ticketClient.holdSeat(ticketRequest);
 
         // 주문 항목 생성 - 현재는 티켓 1매만 가능
-        OrderItem item = OrderItem.create(holdTicket.ticketId(), holdTicket.ticketPrice());
+        OrderItem item = OrderItem.create(holdTicket.ticketId(), holdTicket.price());
 
         // 주문 생성 및 저장 -- 티켓 만료 시각을 주문 만료 시각으로 설정
-        Order order = Order.create(request.userId(), List.of(item), holdTicket.holdExpiresAt());
+        Order order = Order.create(request.userId(), List.of(item), holdTicket.holdExpiredAt());
         Order savedOrder = orderRepository.save(order);
 
         return CreateOrderResponse.from(savedOrder);

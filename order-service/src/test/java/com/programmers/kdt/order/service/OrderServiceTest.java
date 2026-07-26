@@ -2,7 +2,7 @@ package com.programmers.kdt.order.service;
 
 import com.programmers.kdt.common.exception.BusinessException;
 import com.programmers.kdt.order.client.TicketClient;
-import com.programmers.kdt.order.client.TicketHoldResult;
+import com.programmers.kdt.order.dto.TicketHoldResult;
 import com.programmers.kdt.order.client.TicketInfo;
 import com.programmers.kdt.order.dto.*;
 import com.programmers.kdt.order.entity.Order;
@@ -57,6 +57,7 @@ public class OrderServiceTest {
     class CreateOrde{
 
         private final CreateOrderRequest request = new CreateOrderRequest(1L, 10L);
+        private final TicketHoldRequest ticketHoldRequest = new TicketHoldRequest(10L, 1L);
 
         @Test
         @DisplayName("티켓을 점유하고 올바른 주문을 생성한다")
@@ -66,7 +67,7 @@ public class OrderServiceTest {
             TicketHoldResult holdTicket =
                     new TicketHoldResult(10L, 50_000L, holdExpiresAt);
 
-            when(ticketClient.holdSeat(10L, 1L))
+            when(ticketClient.holdSeat(ticketHoldRequest))
                     .thenReturn(holdTicket);
 
             when(orderRepository.save(any(Order.class)))
@@ -100,7 +101,7 @@ public class OrderServiceTest {
             // given
             RuntimeException exception = new RuntimeException("좌석 점유 실패");
 
-            when(ticketClient.holdSeat(10L, 1L))
+            when(ticketClient.holdSeat(ticketHoldRequest))
                     .thenThrow(exception);
             // when & then
             assertThatThrownBy(
