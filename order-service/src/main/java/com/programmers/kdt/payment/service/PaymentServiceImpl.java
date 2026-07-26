@@ -55,6 +55,8 @@ public class PaymentServiceImpl implements PaymentService{
             throw new BusinessException(PaymentErrorCode.PAYMENT_ALREADY_EXISTS);
         }
 
+        order.startPayment(LocalDateTime.now()); // 주문상태 검증
+
         // 주문 금액이 같은지 판별
         if (!order.getTotalAmount().equals(request.amount())) {
             throw new BusinessException(PaymentErrorCode.INVALID_PAYMENT_AMOUNT);
