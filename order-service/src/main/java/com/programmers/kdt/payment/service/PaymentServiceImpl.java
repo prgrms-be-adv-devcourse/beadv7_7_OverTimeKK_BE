@@ -148,8 +148,9 @@ public class PaymentServiceImpl implements PaymentService{
 
     // 환불 요청(접수)
     @Transactional
-    public RefundPaymentResponse refund(Long paymentId, RefundPaymentRequest request) {
-        Payment payment = getPayment(paymentId);
+    public RefundPaymentResponse refund(Long orderId, RefundPaymentRequest request) {
+        Payment payment = paymentRepository.findByOrderId(orderId)
+                .orElseThrow(() -> new BusinessException(PaymentErrorCode.PAYMENT_NOT_FOUND));
 
         try {
             payment.requestRefund();
