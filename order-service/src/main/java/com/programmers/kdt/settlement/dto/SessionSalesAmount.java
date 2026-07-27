@@ -1,8 +1,8 @@
 package com.programmers.kdt.settlement.dto;
 
 public record SessionSalesAmount(
-        Long performacneId,
+        Long performanceId,
         Long sessionNum,
-        Long grossAMount
+        Long grossAmount
 ) {
 }

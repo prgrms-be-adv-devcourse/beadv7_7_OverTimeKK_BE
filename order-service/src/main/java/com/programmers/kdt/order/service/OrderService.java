@@ -1,6 +1,7 @@
 package com.programmers.kdt.order.service;
 
 import com.programmers.kdt.order.dto.*;
+import com.programmers.kdt.settlement.dto.OrderResponse;
 
 import java.util.List;
 
@@ -23,4 +24,6 @@ public interface OrderService {
 
     // 주문 내역 조회
     List<GetOrderHistoryResponse> getOrderHistory(Long userId);
+
+    List<OrderResponse> getOrders(List<Long> ticketIds);
 }

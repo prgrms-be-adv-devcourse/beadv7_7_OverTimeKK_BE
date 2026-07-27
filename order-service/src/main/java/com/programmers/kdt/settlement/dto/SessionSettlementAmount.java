@@ -7,7 +7,4 @@ public record SessionSettlementAmount(
         Long pgFeeAmount,
         Long serviceFeeAmount
 ) {
-    public Long settlementAmount(){
-        return grossAmount - (pgFeeAmount + serviceFeeAmount);
-    }
 }

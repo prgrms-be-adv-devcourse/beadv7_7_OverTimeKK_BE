@@ -13,6 +13,7 @@ import com.programmers.kdt.order.exception.OrderErrorCode;
 import com.programmers.kdt.order.repository.OrderRepository;
 import com.programmers.kdt.payment.dto.RefundPaymentRequest;
 import com.programmers.kdt.payment.service.PaymentService;
+import com.programmers.kdt.settlement.dto.OrderResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.cglib.core.Local;
 import org.springframework.context.ApplicationEventPublisher;
@@ -123,6 +124,15 @@ public class OrderServiceImpl implements OrderService {
         return orderRepository.findById(orderId)
                 .orElseThrow(()->
                         new BusinessException(OrderErrorCode.ORDER_NOT_FOUND));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<OrderResponse> getOrders(List<Long> ticketIds) {
+
+        return orderRepository.findAllByTicketIds(ticketIds).stream()
+                .map(OrderResponse::from)
+                .toList();
     }
 
 }
