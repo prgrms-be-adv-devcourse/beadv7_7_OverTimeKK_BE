@@ -29,8 +29,10 @@ public class PointEarnScheduler {
 
     @Scheduled(cron = "0 01 0 * * *")
     public void earnPointsForEndedPerformances() {
-        LocalDate targetDate = LocalDate.now().minusDays(1); // 어제 종료된 공연 -> 다음날 지급
+        earnPointsForEndedPerformances(LocalDate.now().minusDays(1));
+    }
 
+    public void earnPointsForEndedPerformances(LocalDate targetDate) {
         try {
             List<EndedTicket> endedTickets = endedPerformanceClient.findEndedTickets(targetDate);
             if (endedTickets.isEmpty()) {
@@ -57,8 +59,7 @@ public class PointEarnScheduler {
             }
             log.info("{} 공연 종료 포인트 적립 대상 {}건 중 {}건 처리 완료", targetDate, targets.size(), successCount);
         } catch (Exception e) {
-            log.error("[POINT_EARN_BATCH_FAILED] {} 포인트 적립 배치 자체가 실패. 자동 재처리 되지 않으니 수동 확인 필요.",
-                    targetDate, e);
+            log.error("[POINT_EARN_BATCH_FAILED] {} 포인트 적립 배치 자체가 실패. 자동 재처리 되지 않으니 수동 확인 필요.", targetDate, e);
 
         }
     }
