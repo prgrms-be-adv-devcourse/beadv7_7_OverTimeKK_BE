@@ -184,4 +184,19 @@ class PointEarnSchedulerTest {
 
         verifyNoInteractions(pointService);
     }
+
+    @Test
+    @DisplayName("특정 날짜를 직접 지정해서 수동으로 재처리할 수 있다.")
+    void manualReplayForSpecificDate() {
+        LocalDate specificDate = LocalDate.of(2026, 7, 1);
+        when(endedPerformanceClient.findEndedTickets(specificDate))
+                .thenReturn(List.of(new EndedTicket(1L, 100L)));
+        when(pointEarnTargetRepository.findEarnTargetsByTicketIds(anyList()))
+                .thenReturn(List.of(new PointEarnTarget(10L, 100L, 50_000L)));
+
+        scheduler.earnPointsForEndedPerformances(specificDate);
+
+        verify(endedPerformanceClient).findEndedTickets(specificDate);
+        verify(pointService).earnPoint(10L, 500L, "TICKET:100:POINT_EARN");
+    }
 }
