@@ -8,7 +8,6 @@ import com.programmers.kdt.payment.dto.PointEarnTarget;
 import com.programmers.kdt.payment.exception.PointErrorCode;
 import com.programmers.kdt.payment.repository.PointEarnTargetRepository;
 import com.programmers.kdt.payment.service.PointService;
-import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -157,5 +156,32 @@ class PointEarnSchedulerTest {
         scheduler.earnPointsForEndedPerformances();
 
         verify(pointService, times(2)).earnPoint(10L, 500L, "TICKET:100:POINT_EARN");
+    }
+
+    @Test
+    @DisplayName("종료 티켓 조회(REST) 자체가 실패해도 예외가 밖으로 새지 않는다.")
+    void findEndedTicketsFails_doesNotPropagate() {
+        when(endedPerformanceClient.findEndedTickets(any()))
+                .thenThrow(new RuntimeException("performance-service 응답 없음"));
+
+        assertThatCode(() -> scheduler.earnPointsForEndedPerformances())
+                .doesNotThrowAnyException();
+
+        verifyNoInteractions(pointEarnTargetRepository);
+        verifyNoInteractions(pointService);
+    }
+
+    @Test
+    @DisplayName("정산 대상 조회(DB) 자체가 실패해도 예외가 밖으로 새지 않는다.")
+    void findEarnTargetsFails_doesNotPropagate() {
+        when(endedPerformanceClient.findEndedTickets(any()))
+                .thenReturn(List.of(new EndedTicket(1L, 100L)));
+        when(pointEarnTargetRepository.findEarnTargetsByTicketIds(anyList()))
+                .thenThrow(new RuntimeException("DB 오류"));
+
+        assertThatCode(() -> scheduler.earnPointsForEndedPerformances())
+                .doesNotThrowAnyException();
+
+        verifyNoInteractions(pointService);
     }
 }
