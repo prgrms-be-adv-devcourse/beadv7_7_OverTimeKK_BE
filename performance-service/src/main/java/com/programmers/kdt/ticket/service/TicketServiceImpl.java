@@ -77,7 +77,8 @@ public class TicketServiceImpl implements TicketService {
         Ticket ticket = getTicket(ticketId);
 
         /* Todo : 현재 문제점이 API 날리면 그냥 release 됨.
-         * userId 소유자 or UUID값 체크로 release한게 맞는지 체크 로직 필요해 보임.
+         * 비즈니스 로직 추가 필요해보임
+         * UUID 값을 통해 점유 요청했던 UUID 값이 맞는지 확인
          * */
 
         if (isSoldOut(ticket)) {
@@ -111,12 +112,6 @@ public class TicketServiceImpl implements TicketService {
     }
 
     private boolean isStandbyTicket(Ticket ticket, Long userId) {
-        /* TODO : standby 논의 필요
-         * StandBy 대기 순서 도래 → Ticket의 waitUserId를 변경 후, 고객에게 알림젝
-         * 아니라면 어떻게 표시될 지 논의 필요.
-         * 현행안 by.phb : Ticket이 취소표고 대기자가 user와 동일 할 경우, 대기자의 표임을 표시
-         * */
-
         return ticket.getTicketStatus() == TicketStatus.CANCELED &&
                 userId.equals(ticket.getStandbyUserId()) &&
                 LocalDateTime.now().isAfter(ticket.getStandbyExpiredAt())
