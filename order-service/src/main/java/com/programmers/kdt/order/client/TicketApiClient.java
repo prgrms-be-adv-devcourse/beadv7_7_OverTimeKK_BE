@@ -4,6 +4,7 @@ import com.programmers.kdt.common.exception.BusinessException;
 import com.programmers.kdt.common.response.ApiResponse;
 import com.programmers.kdt.order.dto.TicketHoldRequest;
 import com.programmers.kdt.order.dto.TicketHoldResult;
+import com.programmers.kdt.order.dto.TicketReleaseRequest;
 import com.programmers.kdt.order.exception.OrderErrorCode;
 import lombok.RequiredArgsConstructor;
 import org.springframework.core.ParameterizedTypeReference;
@@ -36,9 +37,12 @@ public class TicketApiClient implements TicketClient {
     }
 
     @Override
-    public void releaseSeat(Long ticketId, Long userId){
-        System.out.println("좌석 점유 해제 요청 성공: ticketId= " + ticketId
-                            + ", userId= " + userId);
+    public void releaseSeat(Long ticketId, TicketReleaseRequest request){
+        restClient.put()
+                .uri("/api/tickets/status/{ticketId}/release", ticketId)
+                .body(request)
+                .retrieve()
+                .toBodilessEntity();
     }
 
     @Override

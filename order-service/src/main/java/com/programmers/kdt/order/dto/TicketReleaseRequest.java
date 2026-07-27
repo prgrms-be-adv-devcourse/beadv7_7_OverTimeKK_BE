@@ -3,14 +3,10 @@ package com.programmers.kdt.order.dto;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
-public record CreateOrderRequest(
-        @NotNull
-        Long userId,
-
-        @NotNull
-        Long ticketId,
+public record TicketReleaseRequest(
 
         @NotBlank
-        String orderType
+        String holdKey
+
 ) {
 }

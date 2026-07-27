@@ -1,5 +1,6 @@
 package com.programmers.kdt.order.service;
 
+import com.programmers.kdt.common.constant.OrderTypeCode;
 import com.programmers.kdt.common.exception.BusinessException;
 import com.programmers.kdt.order.client.TicketClient;
 import com.programmers.kdt.order.dto.TicketHoldResult;
@@ -47,6 +48,8 @@ public class OrderServiceTest {
 
     private OrderServiceImpl orderServiceImpl;
 
+    private static final String HOLD_KEY = "test-hold-key";
+
     @BeforeEach
     void setUp(){
         orderServiceImpl = new OrderServiceImpl(orderRepository, ticketClient, paymentService, eventPublisher);
@@ -56,8 +59,8 @@ public class OrderServiceTest {
     @DisplayName("주문 생성")
     class CreateOrde{
 
-        private final CreateOrderRequest request = new CreateOrderRequest(1L, 10L);
-        private final TicketHoldRequest ticketHoldRequest = new TicketHoldRequest(10L, 1L);
+        private final CreateOrderRequest request = new CreateOrderRequest(1L, 10L, OrderTypeCode.GENERAL);
+        private final TicketHoldRequest ticketHoldRequest = new TicketHoldRequest(10L, 1L, OrderTypeCode.GENERAL);
 
         @Test
         @DisplayName("티켓을 점유하고 올바른 주문을 생성한다")
@@ -65,7 +68,7 @@ public class OrderServiceTest {
             // given
             LocalDateTime holdExpiresAt = LocalDateTime.now().plusMinutes(10);
             TicketHoldResult holdTicket =
-                    new TicketHoldResult(10L, 50_000L, holdExpiresAt);
+                    new TicketHoldResult(10L, 50_000L, holdExpiresAt, HOLD_KEY);
 
             when(ticketClient.holdSeat(ticketHoldRequest))
                     .thenReturn(holdTicket);
@@ -228,11 +231,15 @@ public class OrderServiceTest {
         void cancelOrderSuccess(){
             // given
             Order order = mock(Order.class);
+            OrderItem orderItem = mock(OrderItem.class);
+
             when(orderRepository.findById(100L))
                     .thenReturn(Optional.of(order));
 
             when(order.getOrderId()).thenReturn(100L);
             when(order.getTicketId()).thenReturn(10L);
+            when(order.getItems()).thenReturn(List.of(orderItem));
+            when(orderItem.getHoldKey()).thenReturn(HOLD_KEY);
             when(order.getOrderStatus()).thenReturn(OrderStatus.CANCELLED);
 
             // when
@@ -320,12 +327,15 @@ public class OrderServiceTest {
         void publishCancellationEvent() {
             // given
             Order order = mock(Order.class);
+            OrderItem orderItem = mock(OrderItem.class);
 
             when(orderRepository.findById(100L))
                     .thenReturn(Optional.of(order));
 
             when(order.getOrderId()).thenReturn(100L);
             when(order.getTicketId()).thenReturn(10L);
+            when(order.getItems()).thenReturn(List.of(orderItem));
+            when(orderItem.getHoldKey()).thenReturn(HOLD_KEY);
             when(order.getOrderStatus())
                     .thenReturn(OrderStatus.CANCELLED);
 
@@ -333,10 +343,16 @@ public class OrderServiceTest {
             orderServiceImpl.cancelOrder(100L, request);
 
             // then
-            verify(eventPublisher).publishEvent(
-                    any(OrderCancelledEvent.class)
-            );
+            ArgumentCaptor<OrderCancelledEvent> eventCaptor =
+                    ArgumentCaptor.forClass(OrderCancelledEvent.class);
 
+            verify(eventPublisher).publishEvent(eventCaptor.capture());
+
+            OrderCancelledEvent event = eventCaptor.getValue();
+
+            assertThat(event.orderId()).isEqualTo(100L);
+            assertThat(event.ticketId()).isEqualTo(10L);
+            assertThat(event.holdKey()).isEqualTo(HOLD_KEY);
         }
 
     }

@@ -1,5 +1,6 @@
 package com.programmers.kdt.order.service;
 
+import com.programmers.kdt.common.constant.OrderTypeCode;
 import com.programmers.kdt.common.exception.BusinessException;
 import com.programmers.kdt.order.client.TicketClient;
 import com.programmers.kdt.order.dto.TicketHoldResult;
@@ -33,18 +34,25 @@ public class OrderServiceImpl implements OrderService {
     // 주문 요청
     @Transactional
     public CreateOrderResponse createOrder(CreateOrderRequest request) {
+        validateOrderType(request.orderType());
+
         // 존재하는 좌석인지, 좌석 점유 여부 확인 및 점유 요청
         TicketHoldRequest ticketRequest = TicketHoldRequest.from(request);
         TicketHoldResult holdTicket = ticketClient.holdSeat(ticketRequest);
 
         // 주문 항목 생성 - 현재는 티켓 1매만 가능
-        OrderItem item = OrderItem.create(holdTicket.ticketId(), holdTicket.price());
+        OrderItem item = OrderItem.create(holdTicket.ticketId(), holdTicket.price(), holdTicket.holdKey());
 
         // 주문 생성 및 저장 -- 티켓 만료 시각을 주문 만료 시각으로 설정
         Order order = Order.create(request.userId(), List.of(item), holdTicket.holdExpiredAt());
         Order savedOrder = orderRepository.save(order);
 
         return CreateOrderResponse.from(savedOrder);
+    }
+    private void validateOrderType(String orderType){
+        if(!OrderTypeCode.isSupported(orderType)){
+            throw new BusinessException(OrderErrorCode.INVALID_ORDER_TYPE);
+        }
     }
 
     // 주문 완료
@@ -92,12 +100,15 @@ public class OrderServiceImpl implements OrderService {
         // 결제 취소 성공 -> 주문 취소 완료
         order.cancel();
 
+        OrderItem orderItem = order.getItems().getFirst();
+
         // 좌석 점유 해제 이벤트 발행
         eventPublisher.publishEvent(
                 new OrderCancelledEvent(
-                        orderId,
+                        order.getOrderId(),
                         order.getTicketId(),
-                        1L) // *** 추후 수정
+                        orderItem.getHoldKey()
+                )
         );
 
         return CancelOrderResponse.from(order);

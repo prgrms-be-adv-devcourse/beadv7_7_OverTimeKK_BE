@@ -17,12 +17,14 @@ public class OrderTest {
 
     private final LocalDateTime expiresAt =
             LocalDateTime.now().plusMinutes(10);
+    private static final String HOLD_KEY = "test-hold-key";
 
     private List<OrderItem> createItems(){
+
         return List.of(
-                OrderItem.create(10L, 50_000L),
-                OrderItem.create(20L, 70_000L),
-                OrderItem.create(30L, 100_000L)
+                OrderItem.create(10L, 50_000L, HOLD_KEY),
+                OrderItem.create(20L, 70_000L, HOLD_KEY),
+                OrderItem.create(30L, 100_000L, HOLD_KEY)
         );
     }
 
