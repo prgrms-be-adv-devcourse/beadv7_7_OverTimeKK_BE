@@ -1,0 +1,128 @@
+package com.programmers.kdt.payment.scheduler;
+
+
+import com.programmers.kdt.payment.client.point.EndedPerformanceClient;
+import com.programmers.kdt.payment.client.point.EndedTicket;
+import com.programmers.kdt.payment.dto.PointEarnTarget;
+import com.programmers.kdt.payment.repository.PointEarnTargetRepository;
+import com.programmers.kdt.payment.service.PointService;
+import org.assertj.core.api.Assertions;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+
+import java.time.LocalDate;
+import java.util.List;
+
+import static org.assertj.core.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.*;
+
+@ExtendWith(MockitoExtension.class)
+class PointEarnSchedulerTest {
+
+    @Mock
+    private EndedPerformanceClient endedPerformanceClient;
+
+    @Mock
+    private PointEarnTargetRepository pointEarnTargetRepository;
+
+    @Mock
+    private PointService pointService;
+
+    private PointEarnScheduler scheduler;
+
+    @BeforeEach
+    void setUp() {
+        scheduler = new PointEarnScheduler(endedPerformanceClient, pointEarnTargetRepository, pointService);
+    }
+
+    @Test
+    @DisplayName("종료된 공연 티켓이 없으면 이후 로직은 실행되지 않는다.")
+    void noEndedTickets_doesNothing() {
+        when(endedPerformanceClient.findEndedTickets(any())).thenReturn(List.of());
+
+        scheduler.earnPointsForEndedPerformances();
+
+        verifyNoInteractions(pointEarnTargetRepository);
+        verifyNoInteractions(pointService);
+    }
+
+    @Test
+    @DisplayName("어제 날짜로 종료 티켓을 조회한다.")
+    void queriesYesterdayDate() {
+        when(endedPerformanceClient.findEndedTickets(any())).thenReturn(List.of());
+
+        scheduler.earnPointsForEndedPerformances();
+
+        ArgumentCaptor<LocalDate> captor = ArgumentCaptor.forClass(LocalDate.class);
+        verify(endedPerformanceClient).findEndedTickets(captor.capture());
+        assertThat(captor.getValue()).isEqualTo(LocalDate.now().minusDays(1));
+    }
+
+    @Test
+    @DisplayName("정산 대상이 있으면 티켓 가격의 1%를 적립하고, eventId는 티켓 단위로 만든다.")
+    void earnSuccess_computesOnePercentPerTicket() {
+        when(endedPerformanceClient.findEndedTickets(any()))
+                .thenReturn(List.of(new EndedTicket(1L, 100L), new EndedTicket(1L, 101L)));
+        when(pointEarnTargetRepository.findEarnTargetsByTicketIds(anyList()))
+                .thenReturn(List.of(
+                        new PointEarnTarget(10L, 100L, 50_000L),
+                        new PointEarnTarget(20L, 101L, 30_000L)
+                ));
+
+        scheduler.earnPointsForEndedPerformances();
+
+        verify(pointService).earnPoint(10L, 500L, "TICKET:100:POINT_EARN");
+        verify(pointService).earnPoint(20L, 300L, "TICKET:101:POINT_EARN");
+    }
+
+    @Test
+    @DisplayName("적립액이 0원 이하로 계산되면 그 티켓은 건너뛴다.")
+    void earnAmountZeroOrLess_skipped() {
+        when(endedPerformanceClient.findEndedTickets(any()))
+                .thenReturn(List.of(new EndedTicket(1L, 100L)));
+        when(pointEarnTargetRepository.findEarnTargetsByTicketIds(anyList()))
+                .thenReturn(List.of(new PointEarnTarget(10L, 100L, 49L)));
+
+        scheduler.earnPointsForEndedPerformances();
+
+        verifyNoInteractions(pointService);
+    }
+
+    @Test
+    @DisplayName("일부 티켓 적립이 실패해도 나머지 티켓은 계속 처리된다.")
+    void partialFailure_continuesProcessingOthers() {
+        when(endedPerformanceClient.findEndedTickets(any()))
+                .thenReturn(List.of(new EndedTicket(1L, 100L), new EndedTicket(1L, 101L)));
+        when(pointEarnTargetRepository.findEarnTargetsByTicketIds(anyList()))
+                .thenReturn(List.of(
+                        new PointEarnTarget(10L, 100L, 50_000L),
+                        new PointEarnTarget(20L, 101L, 30_000L)
+                ));
+        doThrow(new RuntimeException("동시성 충돌"))
+                .when(pointService).earnPoint(10L, 500L, "TICKET:100:POINT_EARN");
+
+        scheduler.earnPointsForEndedPerformances();
+
+        verify(pointService).earnPoint(10L, 500L, "TICKET:100:POINT_EARN");
+        verify(pointService).earnPoint(20L, 300L, "TICKET:101:POINT_EARN"); // 첫 번째가 실패해도 두 번째는 호출됨
+    }
+
+    @Test
+    @DisplayName("종료된 티켓은 있지만 완료된 주문에 속한 티켓이 없으면 적립도 없다.")
+    void noMatchingOrderItems_noEarn() {
+        when(endedPerformanceClient.findEndedTickets(any()))
+                .thenReturn(List.of(new EndedTicket(1L, 100L)));
+        when(pointEarnTargetRepository.findEarnTargetsByTicketIds(anyList()))
+                .thenReturn(List.of());
+
+        scheduler.earnPointsForEndedPerformances();
+
+        verifyNoInteractions(pointService);
+    }
+}
