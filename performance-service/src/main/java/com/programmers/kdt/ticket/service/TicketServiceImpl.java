@@ -7,6 +7,7 @@ import com.programmers.kdt.performance.entity.PerformanceSession;
 import com.programmers.kdt.performance.entity.PerformanceSessionId;
 import com.programmers.kdt.performance.exception.PerformanceErrorCode;
 import com.programmers.kdt.performance.repository.PerformanceSessionRepository;
+import com.programmers.kdt.standby.event.StandbyCheckResponseEvent;
 import com.programmers.kdt.standby.event.StandbyTicketEvent;
 import com.programmers.kdt.ticket.dto.CheckTicketHoldAvailableRequest;
 import com.programmers.kdt.ticket.dto.CheckTicketHoldAvailableResponse;
@@ -15,7 +16,7 @@ import com.programmers.kdt.ticket.dto.ReleaseTicketHoldRequest;
 import com.programmers.kdt.ticket.dto.SessionStartDateResponse;
 import com.programmers.kdt.ticket.entity.Ticket;
 import com.programmers.kdt.ticket.entity.TicketStatus;
-import com.programmers.kdt.ticket.event.TryMatchEvent;
+import com.programmers.kdt.ticket.event.StandbyCheckRequestEvent;
 import com.programmers.kdt.ticket.exception.TicketErrorCode;
 import com.programmers.kdt.ticket.repository.TicketRepository;
 import lombok.RequiredArgsConstructor;
@@ -86,22 +87,14 @@ public class TicketServiceImpl implements TicketService {
             throw new BusinessException(TicketErrorCode.HOLD_KEY_DISCREPANCY);
         }
 
-        if (isSoldOut(ticket)) {
-            ticket.releaseToStandby();
-            eventPublisher.publishEvent(new TryMatchEvent(request.ticketId()));
-        } else {
+        boolean existsAvailableInZone = ticketRepository.existsByPerformanceIdAndSessionNumAndTicketStatusAndZone(ticket.getPerformanceId(), ticket.getSessionNum(), TicketStatus.AVAILABLE, ticket.getZone());
+        log.info("{} 공연 {}회차 {} 구역 매진이 아닌가? {}", ticket.getPerformanceId(), ticket.getSessionNum(), ticket.getZone(), existsAvailableInZone);
+
+        if (existsAvailableInZone) {
             ticket.releaseToAvailable();
+        } else {
+            eventPublisher.publishEvent(new StandbyCheckRequestEvent(ticket.getTicketId(), ticket.getSessionNum(), ticket.getZone()));
         }
-    }
-
-    private boolean isSoldOut(Ticket ticket) {
-        boolean isAvailableInZone = ticketRepository.existsByPerformanceIdAndSessionNumAndTicketStatusAndZone(ticket.getPerformanceId(), ticket.getSessionNum(), TicketStatus.AVAILABLE, ticket.getZone());
-        log.info("{} 공연 {}회차 {} 구역 매진이 아닌가? {}", ticket.getPerformanceId(), ticket.getSessionNum(), ticket.getZone(), isAvailableInZone);
-
-        // 대기자 존재여부 확인
-        // Rest API 요청 중
-
-        return !isAvailableInZone;
     }
 
     private @NonNull Ticket getTicket(Long ticketId) {
@@ -114,6 +107,18 @@ public class TicketServiceImpl implements TicketService {
     public void standbyTicket(StandbyTicketEvent event) {
         Ticket ticket = getTicket(event.ticketId());
         ticket.standbyTicket(event.standbyUserId(), event.standbyExpiredAt());
+    }
+
+    @Override
+    @Transactional
+    public void changeTicketStatusByStandby(StandbyCheckResponseEvent event) {
+        Ticket ticket = getTicket(event.ticketId());
+
+        if (event.existsStandby()) {
+            ticket.releaseToStandby();
+        } else {
+            ticket.releaseToAvailable();
+        }
     }
 
     private boolean isStandbyTicket(Ticket ticket, Long userId) {
