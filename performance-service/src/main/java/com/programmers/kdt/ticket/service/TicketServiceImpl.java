@@ -2,6 +2,7 @@ package com.programmers.kdt.ticket.service;
 
 import com.programmers.kdt.common.TimeLimits;
 import com.programmers.kdt.common.exception.BusinessException;
+import com.programmers.kdt.common.util.TicketKeyGenerator;
 import com.programmers.kdt.performance.entity.PerformanceSession;
 import com.programmers.kdt.performance.entity.PerformanceSessionId;
 import com.programmers.kdt.performance.exception.PerformanceErrorCode;
@@ -10,6 +11,7 @@ import com.programmers.kdt.standby.event.StandbyTicketEvent;
 import com.programmers.kdt.ticket.dto.CheckTicketHoldAvailableRequest;
 import com.programmers.kdt.ticket.dto.CheckTicketHoldAvailableResponse;
 import com.programmers.kdt.ticket.dto.CreateStandbyResponse;
+import com.programmers.kdt.ticket.dto.ReleaseTicketHoldRequest;
 import com.programmers.kdt.ticket.dto.SessionStartDateResponse;
 import com.programmers.kdt.ticket.entity.Ticket;
 import com.programmers.kdt.ticket.entity.TicketStatus;
@@ -62,28 +64,31 @@ public class TicketServiceImpl implements TicketService {
 
         Ticket ticket = getTicket(ticketId);
 
+        // TODO : request에 orderType 분기 처리 필요.
+
         if (!isStandbyTicket(ticket, userId) && !isPossibleToHold(ticket)) {
             throw new BusinessException(TicketErrorCode.IMPOSSIBLE_HOLD_TICKET);
         }
 
         LocalDateTime holdExpiredAt = LocalDateTime.now().plusMinutes(TimeLimits.orderHoldTicket5Min);
-        ticket.holdTicket(userId, holdExpiredAt);
-        return new CheckTicketHoldAvailableResponse(ticket.getTicketId(), ticket.getPrice(), holdExpiredAt);
+        String holdKey = TicketKeyGenerator.generate();
+
+        ticket.holdTicket(userId, holdExpiredAt, holdKey);
+        return new CheckTicketHoldAvailableResponse(ticket.getTicketId(), ticket.getPrice(), holdExpiredAt, holdKey);
     }
 
     @Override
     @Transactional
-    public void releaseHoldTicket(Long ticketId) {
-        Ticket ticket = getTicket(ticketId);
+    public void releaseHoldTicket(ReleaseTicketHoldRequest request) {
+        Ticket ticket = getTicket(request.ticketId());
 
-        /* Todo : 현재 문제점이 API 날리면 그냥 release 됨.
-         * 비즈니스 로직 추가 필요해보임
-         * UUID 값을 통해 점유 요청했던 UUID 값이 맞는지 확인
-         * */
+        if (!request.holdKey().equals(ticket.getHoldKey())) {
+            throw new BusinessException(TicketErrorCode.HOLD_KEY_DISCREPANCY);
+        }
 
         if (isSoldOut(ticket)) {
             ticket.releaseToStandby();
-            eventPublisher.publishEvent(new TryMatchEvent(ticketId));
+            eventPublisher.publishEvent(new TryMatchEvent(request.ticketId()));
         } else {
             ticket.releaseToAvailable();
         }
