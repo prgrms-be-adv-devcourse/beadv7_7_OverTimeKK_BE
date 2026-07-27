@@ -30,7 +30,7 @@ public class PointServiceImpl implements PointService {
         }
 
         Point point = pointRepository.findById(userId)
-                .orElseGet(() -> (Point.create(userId))); // 포인트 사용에서 포인트 생성이 과연 맞는가?
+                .orElseThrow(() -> new BusinessException(PointErrorCode.POINT_NOT_FOUND, userId));
 
         try {
             point.use(amount);
