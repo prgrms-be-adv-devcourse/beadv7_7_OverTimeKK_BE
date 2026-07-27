@@ -43,6 +43,26 @@ public class PointServiceImpl implements PointService {
     }
 
     @Override
+    @Transactional
+    public void earnPoint(Long userId, Long amount, String eventId) {
+        if (pointLogRepository.findByEventId(eventId).isPresent()) {
+            log.warn("이미 처리된 포인트 적립 이벤트 - eventId:{}", eventId);
+            return;
+        }
+
+        Point point = pointRepository.findById(userId)
+                .orElseGet(() -> Point.create(userId));
+
+        try {
+            point.earn(amount);
+            pointRepository.saveAndFlush(point);
+        } catch (ObjectOptimisticLockingFailureException e) {
+            throw new BusinessException(PointErrorCode.POINT_CONCURRENT_MODIFICATION);
+        }
+        pointLogRepository.save(PointLog.earn(userId, amount, eventId));
+    }
+
+    @Override
     @Transactional(readOnly = true)
     public Long findUsedAmount(String eventId) {
         return pointLogRepository.findByEventId(eventId)
