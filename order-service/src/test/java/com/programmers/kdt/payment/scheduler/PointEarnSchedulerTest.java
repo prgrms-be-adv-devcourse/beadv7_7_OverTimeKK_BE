@@ -1,9 +1,11 @@
 package com.programmers.kdt.payment.scheduler;
 
 
+import com.programmers.kdt.common.exception.BusinessException;
 import com.programmers.kdt.payment.client.point.EndedPerformanceClient;
 import com.programmers.kdt.payment.client.point.EndedTicket;
 import com.programmers.kdt.payment.dto.PointEarnTarget;
+import com.programmers.kdt.payment.exception.PointErrorCode;
 import com.programmers.kdt.payment.repository.PointEarnTargetRepository;
 import com.programmers.kdt.payment.service.PointService;
 import org.assertj.core.api.Assertions;
@@ -124,5 +126,36 @@ class PointEarnSchedulerTest {
         scheduler.earnPointsForEndedPerformances();
 
         verifyNoInteractions(pointService);
+    }
+
+    @Test
+    @DisplayName("동시성 충돌이 3번 연속 발생하면 재시도를 소진하고 그 티켓만 실패 처리한다.")
+    void concurrentModification_exhaustsRetries() {
+        when(endedPerformanceClient.findEndedTickets(any()))
+                .thenReturn(List.of(new EndedTicket(1L, 100L)));
+        when(pointEarnTargetRepository.findEarnTargetsByTicketIds(anyList()))
+                .thenReturn(List.of(new PointEarnTarget(10L, 100L, 50_000L)));
+        doThrow(new BusinessException(PointErrorCode.POINT_CONCURRENT_MODIFICATION))
+                .when(pointService).earnPoint(10L, 500L, "TICKET:100:POINT_EARN");
+
+        scheduler.earnPointsForEndedPerformances();
+
+        verify(pointService, times(3)).earnPoint(10L, 500L, "TICKET:100:POINT_EARN");
+    }
+
+    @Test
+    @DisplayName("동시성 충돌이 재시도 중 해소되면 그 이후로는 재시도하지 않는다.")
+    void concurrentModification_succeedsOnRetry() {
+        when(endedPerformanceClient.findEndedTickets(any()))
+                .thenReturn(List.of(new EndedTicket(1L, 100L)));
+        when(pointEarnTargetRepository.findEarnTargetsByTicketIds(anyList()))
+                .thenReturn(List.of(new PointEarnTarget(10L, 100L, 50_000L)));
+        doThrow(new BusinessException(PointErrorCode.POINT_CONCURRENT_MODIFICATION))
+                .doNothing()
+                .when(pointService).earnPoint(10L, 500L, "TICKET:100:POINT_EARN");
+
+        scheduler.earnPointsForEndedPerformances();
+
+        verify(pointService, times(2)).earnPoint(10L, 500L, "TICKET:100:POINT_EARN");
     }
 }

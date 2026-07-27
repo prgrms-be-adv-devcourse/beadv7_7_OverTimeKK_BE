@@ -1,8 +1,10 @@
 package com.programmers.kdt.payment.scheduler;
 
+import com.programmers.kdt.common.exception.BusinessException;
 import com.programmers.kdt.payment.client.point.EndedPerformanceClient;
 import com.programmers.kdt.payment.client.point.EndedTicket;
 import com.programmers.kdt.payment.dto.PointEarnTarget;
+import com.programmers.kdt.payment.exception.PointErrorCode;
 import com.programmers.kdt.payment.repository.PointEarnTargetRepository;
 import com.programmers.kdt.payment.service.PointService;
 import lombok.RequiredArgsConstructor;
@@ -19,6 +21,7 @@ import java.util.List;
 public class PointEarnScheduler {
 
     private static final double EARN_RATE = 0.01; // 티켓 가격의 1% 포인트 지급
+    private static final int MAX_RETRY_ATTEMPTS = 3;
 
     private final EndedPerformanceClient endedPerformanceClient;
     private final PointEarnTargetRepository pointEarnTargetRepository;
@@ -44,13 +47,39 @@ public class PointEarnScheduler {
                 if (earnAmount <= 0) {
                     continue;
                 }
-                pointService.earnPoint(target.userId(), earnAmount, pointEarnEventId(target.ticketId()));
-                successCount++;
+                if (earnPointWithRetry(target, earnAmount)) {
+                    successCount++;
+                }
             } catch (Exception e) {
-                log.error("포인트 적립 실패 - ticketId={}, userId={}", target.ticketId(), target.userId(), e);
+                log.error("포인트 적립 처리 중 예상치 못한 예외 - ticketId={}, userId={}", target.ticketId(), target.userId(), e);
             }
         }
         log.info("{} 공연 종료 포인트 적립 대상 {}건 중 {}건 처리 완료", targetDate, targets.size(), successCount);
+    }
+
+    private boolean earnPointWithRetry(PointEarnTarget target, long earnAmount) {
+        String eventId = pointEarnEventId(target.ticketId());
+
+        for (int attempt = 1; attempt <= MAX_RETRY_ATTEMPTS; attempt++) {
+            try {
+                pointService.earnPoint(target.userId(), earnAmount, eventId);
+                return true;
+            } catch (BusinessException e) {
+                boolean retryable = e.getErrorCode() == PointErrorCode.POINT_CONCURRENT_MODIFICATION;
+                if (!retryable) {
+                    log.error("포인트 적립 실패(재시도 불가) - ticketId={}, userId={}, errorCode={}",
+                            target.ticketId(), target.userId(), e.getErrorCode(), e);
+                    return false;
+                }
+                if (attempt == MAX_RETRY_ATTEMPTS) {
+                    log.error("[POINT_EARN_RECONCILIATION_NEEDED] 동시성 충돌로 재시도 소진 - ticketId={}, userId={}, amount={}",
+                            target.ticketId(), target.userId(), earnAmount, e);
+                    return false;
+                }
+                log.warn("포인트 적립 동시성 충돌, 재시도 {}회차 - ticketId={}", attempt, target.ticketId());
+            }
+        }
+        return false;
     }
 
     private String pointEarnEventId(Long ticketId) {
