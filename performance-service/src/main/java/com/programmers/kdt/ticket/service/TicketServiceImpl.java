@@ -6,11 +6,11 @@ import com.programmers.kdt.performance.entity.PerformanceSession;
 import com.programmers.kdt.performance.entity.PerformanceSessionId;
 import com.programmers.kdt.performance.exception.PerformanceErrorCode;
 import com.programmers.kdt.performance.repository.PerformanceSessionRepository;
-import com.programmers.kdt.ticket.dto.CreateStandbyResponse;
+import com.programmers.kdt.standby.event.StandbyTicketEvent;
 import com.programmers.kdt.ticket.dto.CheckTicketHoldAvailableRequest;
 import com.programmers.kdt.ticket.dto.CheckTicketHoldAvailableResponse;
+import com.programmers.kdt.ticket.dto.CreateStandbyResponse;
 import com.programmers.kdt.ticket.dto.SessionStartDateResponse;
-import com.programmers.kdt.ticket.dto.StandbyTicketRequest;
 import com.programmers.kdt.ticket.entity.Ticket;
 import com.programmers.kdt.ticket.entity.TicketStatus;
 import com.programmers.kdt.ticket.event.TryMatchEvent;
@@ -76,19 +76,26 @@ public class TicketServiceImpl implements TicketService {
     public void releaseHoldTicket(Long ticketId) {
         Ticket ticket = getTicket(ticketId);
 
-        if (LocalDateTime.now().isBefore(ticket.getHoldExpiredAt())) {
-            throw new BusinessException(TicketErrorCode.HOLD_TICKET_NOT_EXPIRED);
-        }
+        /* Todo : 현재 문제점이 API 날리면 그냥 release 됨.
+         * userId 소유자 or UUID값 체크로 release한게 맞는지 체크 로직 필요해 보임.
+         * */
 
-        boolean isAvailableInZone = ticketRepository.existsByPerformanceIdAndSessionNumAndTicketStatusAndZone(ticket.getPerformanceId(), ticket.getSessionNum(), TicketStatus.AVAILABLE, ticket.getZone());
-        log.info("{} 공연 {}회차 {} 자리 매진이 아닌가? {}", ticket.getPerformanceId(), ticket.getSessionNum(), ticket.getZone(), isAvailableInZone);
-
-        if (isAvailableInZone) {
-            ticket.releaseToAvailable();
-        } else {
+        if (isSoldOut(ticket)) {
             ticket.releaseToStandby();
             eventPublisher.publishEvent(new TryMatchEvent(ticketId));
+        } else {
+            ticket.releaseToAvailable();
         }
+    }
+
+    private boolean isSoldOut(Ticket ticket) {
+        boolean isAvailableInZone = ticketRepository.existsByPerformanceIdAndSessionNumAndTicketStatusAndZone(ticket.getPerformanceId(), ticket.getSessionNum(), TicketStatus.AVAILABLE, ticket.getZone());
+        log.info("{} 공연 {}회차 {} 구역 매진이 아닌가? {}", ticket.getPerformanceId(), ticket.getSessionNum(), ticket.getZone(), isAvailableInZone);
+
+        // 대기자 존재여부 확인
+        // Rest API 요청 중
+
+        return !isAvailableInZone;
     }
 
     private @NonNull Ticket getTicket(Long ticketId) {
@@ -98,21 +105,21 @@ public class TicketServiceImpl implements TicketService {
 
     @Override
     @Transactional
-    public void standbyTicket(StandbyTicketRequest request) {
-        Ticket ticket = getTicket(request.ticketId());
-        ticket.standbyTicket(request.standbyUserId(), request.standbyExpiredAt());
+    public void standbyTicket(StandbyTicketEvent event) {
+        Ticket ticket = getTicket(event.ticketId());
+        ticket.standbyTicket(event.standbyUserId(), event.standbyExpiredAt());
     }
 
     private boolean isStandbyTicket(Ticket ticket, Long userId) {
         /* TODO : standby 논의 필요
-         * StandBy 대기 순서 도래 → Ticket의 waitUserId를 변경 후, 고객에게 알림
+         * StandBy 대기 순서 도래 → Ticket의 waitUserId를 변경 후, 고객에게 알림젝
          * 아니라면 어떻게 표시될 지 논의 필요.
          * 현행안 by.phb : Ticket이 취소표고 대기자가 user와 동일 할 경우, 대기자의 표임을 표시
          * */
 
         return ticket.getTicketStatus() == TicketStatus.CANCELED &&
-               ticket.getStandbyUserId().equals(userId) &&
-               ticket.getStandbyExpiredAt().isBefore(LocalDateTime.now())
+                userId.equals(ticket.getStandbyUserId()) &&
+                LocalDateTime.now().isAfter(ticket.getStandbyExpiredAt())
         ;
     }
 
