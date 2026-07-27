@@ -37,20 +37,19 @@ public class TicketApiClient implements TicketClient {
     }
 
     @Override
+    public TicketInfo getTicket(Long ticketId){
+        return restClient.get()
+                .uri("/api/tickets/{ticketId}", ticketId)
+                .retrieve()
+                .body(TicketInfo.class);
+    }
+
+    @Override
     public void releaseSeat(Long ticketId, TicketReleaseRequest request){
         restClient.put()
                 .uri("/api/tickets/status/{ticketId}/release", ticketId)
                 .body(request)
                 .retrieve()
                 .toBodilessEntity();
-    }
-
-    @Override
-    public TicketInfo getTicket(Long ticketId){
-        return new TicketInfo(
-                ticketId,
-                "오페라의 유령",
-                "R"
-        );
     }
 }
