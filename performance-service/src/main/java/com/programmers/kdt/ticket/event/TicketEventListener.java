@@ -1,7 +1,6 @@
 package com.programmers.kdt.ticket.event;
 
 import com.programmers.kdt.standby.event.StandbyTicketEvent;
-import com.programmers.kdt.ticket.dto.StandbyTicketRequest;
 import com.programmers.kdt.ticket.service.TicketService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.scheduling.annotation.Async;
@@ -13,7 +12,7 @@ import org.springframework.transaction.event.TransactionalEventListener;
 
 @Component
 @RequiredArgsConstructor
-public class StandbyTicketEventListener {
+public class TicketEventListener {
 
     private final TicketService ticketService;
 
@@ -21,6 +20,6 @@ public class StandbyTicketEventListener {
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void onStandbyTicket(StandbyTicketEvent event) {
-        new StandbyTicketRequest(event.ticketId(), event.standbyUserId(), event.standbyExpiredAt());
+        ticketService.standbyTicket(event);
     }
 }
