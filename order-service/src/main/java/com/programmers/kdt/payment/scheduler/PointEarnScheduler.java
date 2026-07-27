@@ -31,30 +31,36 @@ public class PointEarnScheduler {
     public void earnPointsForEndedPerformances() {
         LocalDate targetDate = LocalDate.now().minusDays(1); // 어제 종료된 공연 -> 다음날 지급
 
-        List<EndedTicket> endedTickets = endedPerformanceClient.findEndedTickets(targetDate);
-        if (endedTickets.isEmpty()) {
-            log.info("{} 종료된 공연의 정산 대상 티켓 없음", targetDate);
-            return;
-        }
-
-        List<Long> ticketIds = endedTickets.stream().map(EndedTicket::ticketId).toList();
-        List<PointEarnTarget> targets = pointEarnTargetRepository.findEarnTargetsByTicketIds(ticketIds);
-
-        int successCount = 0;
-        for (PointEarnTarget target : targets) {
-            try {
-                long earnAmount = Math.round(target.ticketPrice() * EARN_RATE);
-                if (earnAmount <= 0) {
-                    continue;
-                }
-                if (earnPointWithRetry(target, earnAmount)) {
-                    successCount++;
-                }
-            } catch (Exception e) {
-                log.error("포인트 적립 처리 중 예상치 못한 예외 - ticketId={}, userId={}", target.ticketId(), target.userId(), e);
+        try {
+            List<EndedTicket> endedTickets = endedPerformanceClient.findEndedTickets(targetDate);
+            if (endedTickets.isEmpty()) {
+                log.info("{} 종료된 공연의 정산 대상 티켓 없음", targetDate);
+                return;
             }
+
+            List<Long> ticketIds = endedTickets.stream().map(EndedTicket::ticketId).toList();
+            List<PointEarnTarget> targets = pointEarnTargetRepository.findEarnTargetsByTicketIds(ticketIds);
+
+            int successCount = 0;
+            for (PointEarnTarget target : targets) {
+                try {
+                    long earnAmount = Math.round(target.ticketPrice() * EARN_RATE);
+                    if (earnAmount <= 0) {
+                        continue;
+                    }
+                    if (earnPointWithRetry(target, earnAmount)) {
+                        successCount++;
+                    }
+                } catch (Exception e) {
+                    log.error("포인트 적립 처리 중 예상치 못한 예외 - ticketId={}, userId={}", target.ticketId(), target.userId(), e);
+                }
+            }
+            log.info("{} 공연 종료 포인트 적립 대상 {}건 중 {}건 처리 완료", targetDate, targets.size(), successCount);
+        } catch (Exception e) {
+            log.error("[POINT_EARN_BATCH_FAILED] {} 포인트 적립 배치 자체가 실패. 자동 재처리 되지 않으니 수동 확인 필요.",
+                    targetDate, e);
+
         }
-        log.info("{} 공연 종료 포인트 적립 대상 {}건 중 {}건 처리 완료", targetDate, targets.size(), successCount);
     }
 
     private boolean earnPointWithRetry(PointEarnTarget target, long earnAmount) {
