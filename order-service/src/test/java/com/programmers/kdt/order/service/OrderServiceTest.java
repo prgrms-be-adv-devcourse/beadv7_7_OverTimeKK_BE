@@ -9,7 +9,7 @@ import com.programmers.kdt.order.dto.*;
 import com.programmers.kdt.order.entity.Order;
 import com.programmers.kdt.order.entity.OrderItem;
 import com.programmers.kdt.order.entity.OrderStatus;
-import com.programmers.kdt.order.event.OrderCancelledEvent;
+import com.programmers.kdt.order.event.TicketReleaseRequestEvent;
 import com.programmers.kdt.order.exception.OrderErrorCode;
 import com.programmers.kdt.order.repository.OrderRepository;
 import com.programmers.kdt.payment.service.PaymentService;
@@ -243,7 +243,7 @@ public class OrderServiceTest {
             when(order.getOrderStatus()).thenReturn(OrderStatus.CANCELLED);
 
             // when
-            CancelOrderResponse response = orderServiceImpl.cancelOrder(100L, request);
+            CancelOrderResponse response = orderServiceImpl.cancelCompletedOrder(100L, request);
 
             // then
             assertThat(response).isNotNull();
@@ -256,9 +256,9 @@ public class OrderServiceTest {
                                     .equals("사용자 요청")
                     )
             );
-            verify(order).cancel();
+            verify(order).cancelCompleted();
             verify(eventPublisher).publishEvent(
-                    any(OrderCancelledEvent.class)
+                    any(TicketReleaseRequestEvent.class)
             );
         }
 
@@ -280,11 +280,11 @@ public class OrderServiceTest {
 
             // when & then
             assertThatThrownBy(
-                    () -> orderServiceImpl.cancelOrder(100L, request)
+                    () -> orderServiceImpl.cancelCompletedOrder(100L, request)
             )
                     .isSameAs(exception);
             verify(paymentService, never()).refund(any(), any());
-            verify(order, never()).cancel();
+            verify(order, never()).cancelCompleted();
             verifyNoInteractions(eventPublisher);
         }
 
@@ -311,13 +311,13 @@ public class OrderServiceTest {
 
             // when & then
             assertThatThrownBy(
-                    () -> orderServiceImpl.cancelOrder(100L, request)
+                    () -> orderServiceImpl.cancelCompletedOrder(100L, request)
             )
                     .isSameAs(exception);
 
             verify(order).validateCancel();
 
-            verify(order, never()).cancel();
+            verify(order, never()).cancelCompleted();
 
             verifyNoInteractions(eventPublisher);
         }
@@ -340,15 +340,15 @@ public class OrderServiceTest {
                     .thenReturn(OrderStatus.CANCELLED);
 
             // when
-            orderServiceImpl.cancelOrder(100L, request);
+            orderServiceImpl.cancelCompletedOrder(100L, request);
 
             // then
-            ArgumentCaptor<OrderCancelledEvent> eventCaptor =
-                    ArgumentCaptor.forClass(OrderCancelledEvent.class);
+            ArgumentCaptor<TicketReleaseRequestEvent> eventCaptor =
+                    ArgumentCaptor.forClass(TicketReleaseRequestEvent.class);
 
             verify(eventPublisher).publishEvent(eventCaptor.capture());
 
-            OrderCancelledEvent event = eventCaptor.getValue();
+            TicketReleaseRequestEvent event = eventCaptor.getValue();
 
             assertThat(event.orderId()).isEqualTo(100L);
             assertThat(event.ticketId()).isEqualTo(10L);

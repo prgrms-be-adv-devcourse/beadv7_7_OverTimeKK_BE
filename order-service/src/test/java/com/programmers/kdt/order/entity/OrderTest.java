@@ -200,7 +200,7 @@ public class OrderTest {
             Order order = Order.create(1L, createItems(), expiresAt);
             order.startPayment(expiresAt.minusSeconds(1));
             order.complete();
-            order.cancel();
+            order.cancelCompleted();
 
             // when & then
             assertThatThrownBy(order::expire)
@@ -226,7 +226,7 @@ public class OrderTest {
             order.complete();
 
             // when
-            order.cancel();
+            order.cancelCompleted();
 
             // then
             assertThat(order.getOrderStatus())
@@ -240,10 +240,10 @@ public class OrderTest {
             Order order = Order.create(1L, createItems(), expiresAt);
             order.startPayment(expiresAt.minusSeconds(1));
             order.complete();
-            order.cancel();
+            order.cancelCompleted();
 
             // when & then
-            assertThatThrownBy(order::cancel)
+            assertThatThrownBy(order::cancelCompleted)
                     .isInstanceOfSatisfying(
                             BusinessException.class,
                             exception -> assertThat(exception.getErrorCode())
@@ -258,7 +258,7 @@ public class OrderTest {
             Order order = Order.create(1L, createItems(), expiresAt);
 
             // when & then
-            assertThatThrownBy(order::cancel)
+            assertThatThrownBy(order::cancelCompleted)
                     .isInstanceOfSatisfying(
                             BusinessException.class,
                             exception -> assertThat(exception.getErrorCode())
@@ -274,7 +274,7 @@ public class OrderTest {
             order.expire();
 
             // when & then
-            assertThatThrownBy(order::cancel)
+            assertThatThrownBy(order::cancelCompleted)
                     .isInstanceOfSatisfying(
                             BusinessException.class,
                             exception -> assertThat(exception.getErrorCode())

@@ -9,7 +9,7 @@ import com.programmers.kdt.order.dto.*;
 import com.programmers.kdt.order.entity.Order;
 import com.programmers.kdt.order.entity.OrderItem;
 import com.programmers.kdt.order.entity.OrderStatus;
-import com.programmers.kdt.order.event.OrderCancelledEvent;
+import com.programmers.kdt.order.event.TicketReleaseRequestEvent;
 import com.programmers.kdt.order.exception.OrderErrorCode;
 import com.programmers.kdt.order.repository.OrderRepository;
 import com.programmers.kdt.payment.dto.RefundPaymentRequest;
@@ -32,6 +32,7 @@ public class OrderServiceImpl implements OrderService {
     private final ApplicationEventPublisher eventPublisher;
 
     // 주문 요청
+    @Override
     @Transactional
     public CreateOrderResponse createOrder(CreateOrderRequest request) {
         validateOrderType(request.orderType());
@@ -55,7 +56,20 @@ public class OrderServiceImpl implements OrderService {
         }
     }
 
+    @Override
+    @Transactional
+    // 결제 전 주문 취소
+    public CancelOrderResponse cancelPendingOrder(Long orderId){
+        Order order = findOrder(orderId);
+        order.cancelPending();
+
+        publishTicketReleaseEvent(order);
+
+        return CancelOrderResponse.from(order);
+    }
+
     // 주문 완료
+    @Override
     @Transactional
     public void completeOrder(Long orderId){
         Order order = findOrder(orderId);
@@ -63,6 +77,7 @@ public class OrderServiceImpl implements OrderService {
     }
 
     // 주문 만료
+    @Override
     @Transactional
     public void expireOrders(){
         LocalDateTime now = LocalDateTime.now();
@@ -73,10 +88,12 @@ public class OrderServiceImpl implements OrderService {
         );
         for(Order order : orders){
             order.expire();
+            publishTicketReleaseEvent(order);
         }
     }
 
     // 주문 만료 조회 -- 결제 생성 API 클릭 시 호출
+    @Override
     @Transactional
     public void startPayment(Long orderId) {
         Order order = findOrder(orderId);
@@ -84,9 +101,10 @@ public class OrderServiceImpl implements OrderService {
         order.startPayment(LocalDateTime.now());
     }
 
-    // 주문 취소
+    // 결제 후 주문 취소
+    @Override
     @Transactional
-    public CancelOrderResponse cancelOrder(Long orderId, CancelOrderRequest request) {
+    public CancelOrderResponse cancelCompletedOrder(Long orderId, CancelOrderRequest request) {
         Order order = findOrder(orderId);
 
         // 취소 가능한 주문인지 검증
@@ -98,23 +116,15 @@ public class OrderServiceImpl implements OrderService {
                 new RefundPaymentRequest(request.reason())); // paymentService의 cancel메서드 파라미터 :orderId로 변경
 
         // 결제 취소 성공 -> 주문 취소 완료
-        order.cancel();
+        order.cancelCompleted();
 
-        OrderItem orderItem = order.getItems().getFirst();
-
-        // 좌석 점유 해제 이벤트 발행
-        eventPublisher.publishEvent(
-                new OrderCancelledEvent(
-                        order.getOrderId(),
-                        order.getTicketId(),
-                        orderItem.getHoldKey()
-                )
-        );
+        // TODO: 결제 완료 티켓 취소 API 구현 후 연동
 
         return CancelOrderResponse.from(order);
     }
 
     // 주문 내역 조회
+    @Override
     @Transactional(readOnly = true)
     public List<GetOrderHistoryResponse> getOrderHistory(Long userId){
         List<Order> orderHistory = orderRepository.findByUserId(userId);
@@ -133,6 +143,18 @@ public class OrderServiceImpl implements OrderService {
         return orderRepository.findById(orderId)
                 .orElseThrow(()->
                         new BusinessException(OrderErrorCode.ORDER_NOT_FOUND));
+    }
+
+    private void publishTicketReleaseEvent(Order order) {
+        OrderItem orderItem = order.getItems().getFirst();
+
+        eventPublisher.publishEvent(
+                new TicketReleaseRequestEvent(
+                        order.getOrderId(),
+                        orderItem.getTicketId(),
+                        orderItem.getHoldKey()
+                )
+        );
     }
 
 }

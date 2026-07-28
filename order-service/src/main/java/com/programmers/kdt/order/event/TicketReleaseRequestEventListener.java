@@ -12,12 +12,12 @@ import org.springframework.web.client.RestClientException;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class OrderCancelledEventListener {
+public class TicketReleaseRequestEventListener {
 
     private final TicketClient ticketClient;
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
-    public void handle(OrderCancelledEvent event){
+    public void handle(TicketReleaseRequestEvent event){
         try{
             ticketClient.releaseSeat(new TicketReleaseRequest(event.ticketId(), event.holdKey()));
         } catch (RestClientException e){

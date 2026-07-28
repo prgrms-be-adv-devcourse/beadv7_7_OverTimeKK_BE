@@ -93,6 +93,16 @@ public class Order extends BaseTimeEntity {
                 .sum();
     }
 
+    // 결제 전 주문 취소 PENDING -> CANCELED
+    public void cancelPending(){
+        if(orderStatus != OrderStatus.PENDING){
+            throw new BusinessException(OrderErrorCode.ORDER_NOT_PENDING);
+        }
+        this.orderStatus = OrderStatus.CANCELLED;
+        this.cancelledAt = LocalDateTime.now();
+
+    }
+
     // 주문 완료 PAYMENT_STARTED -> COMPLETED
     public void complete(){
         if(orderStatus == OrderStatus.COMPLETED){
@@ -142,8 +152,8 @@ public class Order extends BaseTimeEntity {
         }
     }
 
-    // 주문 취소 COMPLETED -> CANCELED
-    public void cancel(){
+    // 결제 완료 후 주문 취소 COMPLETED -> CANCELED
+    public void cancelCompleted(){
         validateCancel();
         this.orderStatus = OrderStatus.CANCELLED;
         this.cancelledAt = LocalDateTime.now();
