@@ -12,6 +12,8 @@ public enum PaymentErrorCode implements ErrorCode {
     MISSING_ORDER_ID(HttpStatus.BAD_REQUEST, "PAY400_005", "주문 정보가 없습니다."),
     MISSING_PAYMENT_ID(HttpStatus.BAD_REQUEST, "PAY400_006", "결제 정보가 없습니다."),
     ZERO_REFUND_AMOUNT(HttpStatus.BAD_REQUEST, "PAY400_007", "환불 금액은 0원보다 커야 합니다. 금액: {0}"),
+    MISSING_TRANSACTION_KEY(HttpStatus.BAD_REQUEST, "PAY400_008", "결제 승인 키(transactionKey)가 없습니다."),
+
 
     PAYMENT_NOT_FOUND(HttpStatus.NOT_FOUND, "PAY404_001", "결제 내역을 찾을 수 없습니다."),
     ORDER_NOT_FOUND(HttpStatus.NOT_FOUND, "PAY404_002", "주문 내역을 찾을 수 없습니다."),
