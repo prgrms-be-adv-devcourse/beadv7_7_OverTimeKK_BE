@@ -116,8 +116,6 @@ public class PaymentServiceImpl implements PaymentService{
             rollbackFailedPoint(payment.getOrderId(), usedPoint);
         }
 
-
-
         return ConfirmPaymentResponse.from(payment);
     }
 
