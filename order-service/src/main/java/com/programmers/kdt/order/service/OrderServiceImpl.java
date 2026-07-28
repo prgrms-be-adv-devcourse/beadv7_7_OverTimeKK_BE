@@ -21,6 +21,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 
 @Service
@@ -123,17 +126,31 @@ public class OrderServiceImpl implements OrderService {
         return CancelOrderResponse.from(order);
     }
 
-    // 주문 내역 조회
     @Override
     @Transactional(readOnly = true)
-    public List<GetOrderHistoryResponse> getOrderHistory(Long userId){
-        List<Order> orderHistory = orderRepository.findByUserId(userId);
+    public List<GetOrderHistoryResponse> getOrderHistory(Long userId) {
+        List<Order> orders = orderRepository.findByUserIdOrderByCreatedAtDesc(userId);
 
-        // 공연장 -> ticketId 조회해서 가져오기
-        return orderHistory.stream()
+        if (orders.isEmpty()) {
+            return List.of();
+        }
+
+        List<TicketInfo> ticketInfos = ticketClient.getTickets(userId);
+
+        Map<Long, TicketInfo> ticketInfoMap = ticketInfos.stream()
+                .collect(Collectors.toMap(
+                        TicketInfo::ticketId,
+                        Function.identity()
+                ));
+
+        return orders.stream()
                 .map(order -> {
-                    Long ticketId = order.getTicketId();
-                    TicketInfo ticketInfo = ticketClient.getTicket(ticketId);
+                    TicketInfo ticketInfo =
+                            ticketInfoMap.get(order.getTicketId());
+
+                    if (ticketInfo == null) {throw new BusinessException(OrderErrorCode.TICKET_INFO_NOT_FOUND);
+                    }
+
                     return GetOrderHistoryResponse.from(order, ticketInfo);
                 })
                 .toList();

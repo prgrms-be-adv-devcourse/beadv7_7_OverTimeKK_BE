@@ -12,6 +12,8 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientResponseException;
 
+import java.util.List;
+
 @Component
 @RequiredArgsConstructor
 public class TicketApiClient implements TicketClient {
@@ -37,11 +39,21 @@ public class TicketApiClient implements TicketClient {
     }
 
     @Override
-    public TicketInfo getTicket(Long ticketId){
-        return restClient.get()
-                .uri("/api/tickets/{ticketId}", ticketId)
+    public List<TicketInfo> getTickets(Long userId) {
+        ApiResponse<List<TicketInfo>> response = restClient.get()
+                .uri("/api/tickets/orders?userId={userId}", userId)
                 .retrieve()
-                .body(TicketInfo.class);
+                .body(new ParameterizedTypeReference<
+                        ApiResponse<List<TicketInfo>>
+                        >() {});
+
+        if (response == null || response.data() == null) {
+            throw new BusinessException(
+                    OrderErrorCode.TICKET_INFO_RESPONSE_EMPTY
+            );
+        }
+
+        return response.data();
     }
 
     @Override
