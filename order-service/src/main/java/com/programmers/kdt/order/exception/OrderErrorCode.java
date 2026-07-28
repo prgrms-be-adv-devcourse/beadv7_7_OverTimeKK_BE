@@ -15,10 +15,11 @@ public enum OrderErrorCode implements ErrorCode {
     ORDER_NOT_PAYMENT_STARTED(HttpStatus.CONFLICT, "ORD409_002", "결제가 시작된 주문만 완료할 수 있습니다."),
     ORDER_ALREADY_EXPIRED(HttpStatus.CONFLICT, "ORD409_003", "이미 만료된 주문입니다."),
     ORDER_NOT_COMPLETED(HttpStatus.CONFLICT, "ORD409_004", "완료된 주문만 취소할 수 있습니다."),
-    ORDER_ALREADY_CANCELED(HttpStatus.CONFLICT, "ORD409_005", "이미 취소된 주문입니다."),
+    ORDER_ALREADY_CANCELLED(HttpStatus.CONFLICT, "ORD409_005", "이미 취소된 주문입니다."),
     TICKET_HOLD_FAILED(HttpStatus.CONFLICT,  "ORD409_006", "티켓을 점유할 수 없습니다."),
     TICKET_HOLD_RESPONSE_EMPTY(HttpStatus.BAD_GATEWAY, "ORD502_001", "티켓 서비스에서 정상적인 점유 응답을 받지 못했습니다."),
-    TICKET_INFO_RESPONSE_EMPTY(HttpStatus.BAD_GATEWAY,"ORD502_002", "티켓 정보 조회 응답이 비어 있습니다.");
+    TICKET_INFO_RESPONSE_EMPTY(HttpStatus.BAD_GATEWAY,"ORD502_002", "티켓 정보 조회 응답이 비어 있습니다."),
+    TICKET_INFO_GET_FAILED(HttpStatus.BAD_GATEWAY,"ORD502_003", "티켓 정보 조회에 실패했습니다.");
 
     private final HttpStatus httpStatus;
     private final String code;

@@ -145,7 +145,7 @@ public class Order extends BaseTimeEntity {
     // 취소 가능한 주문인지 검증
     public void validateCancel(){
         if(orderStatus == OrderStatus.CANCELLED){
-            throw new BusinessException(OrderErrorCode.ORDER_ALREADY_CANCELED);
+            throw new BusinessException(OrderErrorCode.ORDER_ALREADY_CANCELLED);
         }
         if(orderStatus != OrderStatus.COMPLETED){
             throw new BusinessException(OrderErrorCode.ORDER_NOT_COMPLETED);

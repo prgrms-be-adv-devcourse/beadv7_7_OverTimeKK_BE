@@ -11,7 +11,7 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     List<Order> findAllByOrderStatusAndExpiresAtLessThanEqual(
             OrderStatus orderStatus,
             LocalDateTime expiresAt
-    );;
+    );
 
     List<Order> findByUserIdAndOrderStatusOrderByCreatedAtDesc(Long userId, OrderStatus orderStatus);
 }

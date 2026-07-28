@@ -247,7 +247,7 @@ public class OrderTest {
                     .isInstanceOfSatisfying(
                             BusinessException.class,
                             exception -> assertThat(exception.getErrorCode())
-                                    .isEqualTo(OrderErrorCode.ORDER_ALREADY_CANCELED)
+                                    .isEqualTo(OrderErrorCode.ORDER_ALREADY_CANCELLED)
                     );
         }
 

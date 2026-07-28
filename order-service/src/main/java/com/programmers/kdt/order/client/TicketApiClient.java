@@ -40,20 +40,25 @@ public class TicketApiClient implements TicketClient {
 
     @Override
     public List<TicketInfo> getTickets(Long userId) {
-        ApiResponse<List<TicketInfo>> response = restClient.get()
-                .uri("/api/tickets/orders?userId={userId}", userId)
-                .retrieve()
-                .body(new ParameterizedTypeReference<
-                        ApiResponse<List<TicketInfo>>
-                        >() {});
+        try {
+            ApiResponse<List<TicketInfo>> response = restClient.get()
+                    .uri("/api/tickets/orders?userId={userId}", userId)
+                    .retrieve()
+                    .body(new ParameterizedTypeReference<
+                            ApiResponse<List<TicketInfo>>
+                            >() {});
 
-        if (response == null || response.data() == null) {
-            throw new BusinessException(
-                    OrderErrorCode.TICKET_INFO_RESPONSE_EMPTY
-            );
+            if (response == null || response.data() == null) {
+                throw new BusinessException(
+                        OrderErrorCode.TICKET_INFO_RESPONSE_EMPTY
+                );
+            }
+
+            return response.data();
+
+        } catch (RestClientResponseException e) {
+            throw new BusinessException(OrderErrorCode.TICKET_INFO_GET_FAILED);
         }
-
-        return response.data();
     }
 
     @Override
