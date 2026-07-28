@@ -129,7 +129,11 @@ public class OrderServiceImpl implements OrderService {
     @Override
     @Transactional(readOnly = true)
     public List<GetOrderHistoryResponse> getOrderHistory(Long userId) {
-        List<Order> orders = orderRepository.findByUserIdOrderByCreatedAtDesc(userId);
+        List<Order> orders =
+                orderRepository.findByUserIdAndOrderStatusOrderByCreatedAtDesc(
+                        userId,
+                        OrderStatus.COMPLETED
+                );
 
         if (orders.isEmpty()) {
             return List.of();
@@ -148,7 +152,10 @@ public class OrderServiceImpl implements OrderService {
                     TicketInfo ticketInfo =
                             ticketInfoMap.get(order.getTicketId());
 
-                    if (ticketInfo == null) {throw new BusinessException(OrderErrorCode.TICKET_INFO_NOT_FOUND);
+                    if (ticketInfo == null) {
+                        throw new BusinessException(
+                                OrderErrorCode.TICKET_INFO_NOT_FOUND
+                        );
                     }
 
                     return GetOrderHistoryResponse.from(order, ticketInfo);
