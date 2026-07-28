@@ -21,8 +21,8 @@ public enum PaymentErrorCode implements ErrorCode {
 
     PAYMENT_ALREADY_EXISTS(HttpStatus.CONFLICT, "PAY409_001", "이미 해당 주문에 대한 결제가 존재합니다."),
     INVALID_PAYMENT_STATUS(HttpStatus.CONFLICT, "PAY409_002", "현재 결제 상태에서는 처리할 수 없는 요청입니다. 현재 상태: {0}"),
-    PAYMENT_CONCURRENT_MODIFICATION(HttpStatus.CONFLICT, "P409_003", "다른 요청과 동시에 처리되어 실패했습니다. 잠시 후 다시 시도해주세요."),
-    REFUND_ALREADY_IN_PROGRESS(HttpStatus.CONFLICT, "P409_004", "이미 처리 중인 환불 요청이 있습니다."),
+    PAYMENT_CONCURRENT_MODIFICATION(HttpStatus.CONFLICT, "PAY409_003", "다른 요청과 동시에 처리되어 실패했습니다. 잠시 후 다시 시도해주세요."),
+    REFUND_ALREADY_IN_PROGRESS(HttpStatus.CONFLICT, "PAY409_004", "이미 처리 중인 환불 요청이 있습니다."),
 
     REFUND_PERIOD_EXPIRED(HttpStatus.UNPROCESSABLE_CONTENT, "PAY422_001", "환불 가능 기간이 지나 취소할 수 없습니다."),
 
