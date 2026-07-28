@@ -108,7 +108,6 @@ public class TicketServiceImpl implements TicketService {
         return ticketRepository.findTicketsByBuyUserId(userId);
     }
 
-    private boolean isStandbyTicket(Ticket ticket, Long userId) {
     @Override
     @Transactional
     public void cancelReservedTicket(CancelTicketStatusRequest request) {
