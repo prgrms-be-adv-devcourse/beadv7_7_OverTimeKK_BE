@@ -19,7 +19,7 @@ public class OrderCancelledEventListener {
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void handle(OrderCancelledEvent event){
         try{
-            ticketClient.releaseSeat(event.ticketId(), new TicketReleaseRequest(event.holdKey()));
+            ticketClient.releaseSeat(new TicketReleaseRequest(event.ticketId(), event.holdKey()));
         } catch (RestClientException e){
             log.error(
                     "좌석 해제 요청 실패 :  orderId={}, ticketId={}",

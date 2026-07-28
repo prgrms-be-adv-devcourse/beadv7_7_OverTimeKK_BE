@@ -8,6 +8,6 @@ import com.programmers.kdt.order.dto.TicketReleaseRequest;
 public interface TicketClient {
 
     TicketHoldResult holdSeat(TicketHoldRequest ticketRequest);
-    void releaseSeat(Long ticketId, TicketReleaseRequest request);
+    void releaseSeat(TicketReleaseRequest request);
     TicketInfo getTicket(Long ticketId);
 }

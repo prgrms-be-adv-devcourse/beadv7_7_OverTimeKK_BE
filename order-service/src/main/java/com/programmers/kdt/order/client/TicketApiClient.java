@@ -45,9 +45,9 @@ public class TicketApiClient implements TicketClient {
     }
 
     @Override
-    public void releaseSeat(Long ticketId, TicketReleaseRequest request){
+    public void releaseSeat(TicketReleaseRequest request){
         restClient.put()
-                .uri("/api/tickets/status/{ticketId}/release", ticketId)
+                .uri("/api/tickets/status/{ticketId}/release")
                 .body(request)
                 .retrieve()
                 .toBodilessEntity();

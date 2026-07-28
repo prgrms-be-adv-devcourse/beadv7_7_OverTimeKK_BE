@@ -5,6 +5,9 @@ import jakarta.validation.constraints.NotNull;
 
 public record TicketReleaseRequest(
 
+        @NotNull
+        Long ticketId,
+
         @NotBlank
         String holdKey
 
