@@ -19,7 +19,7 @@ public class StandbyEventListener {
     @Async
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public void handle(StandbyCheckRequestEvent event) {
+    public void onCheckStandbyHandler(StandbyCheckRequestEvent event) {
         standbyService.StandbyCheck(event);
     }
 }
