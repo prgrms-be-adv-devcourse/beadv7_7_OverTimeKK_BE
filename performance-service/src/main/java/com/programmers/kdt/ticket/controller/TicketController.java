@@ -67,7 +67,7 @@ public class TicketController {
         return ApiResponse.success(ticketService.findOrderedTicketInfo(request.userId()));
     }
 
-    @GetMapping("/select/seat")
+    @PostMapping("/select/seat")
     public ApiResponse<TicketZonesResponse> selectZone(@Valid @RequestBody TicketZoneRequest request) {
         return ApiResponse.success(ticketService.getTicketZone(request));
     }
