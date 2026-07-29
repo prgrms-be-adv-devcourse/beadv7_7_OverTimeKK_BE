@@ -2,7 +2,11 @@ package com.programmers.kdt.order.client;
 
 import com.programmers.kdt.common.exception.BusinessException;
 import com.programmers.kdt.common.response.ApiResponse;
-import com.programmers.kdt.order.dto.*;
+import com.programmers.kdt.order.dto.TicketHoldRequest;
+import com.programmers.kdt.order.dto.TicketHoldResult;
+import com.programmers.kdt.order.dto.TicketReleaseRequest;
+import com.programmers.kdt.order.dto.TicketCancelRequest;
+import com.programmers.kdt.order.dto.TicketReserveRequest;
 import com.programmers.kdt.order.exception.OrderErrorCode;
 import lombok.RequiredArgsConstructor;
 import org.springframework.core.ParameterizedTypeReference;
