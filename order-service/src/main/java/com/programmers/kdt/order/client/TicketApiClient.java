@@ -8,7 +8,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
-import org.springframework.web.client.RestClientResponseException;
+import org.springframework.web.client.RestClientException;
 
 import java.util.List;
 
@@ -31,7 +31,7 @@ public class TicketApiClient implements TicketClient {
             }
             return response.data();
 
-        } catch (RestClientResponseException e){
+        } catch (RestClientException e){
             throw new BusinessException(OrderErrorCode.TICKET_HOLD_FAILED);
         }
     }
@@ -45,27 +45,36 @@ public class TicketApiClient implements TicketClient {
                     .retrieve()
                     .toBodilessEntity();
 
-        } catch (RestClientResponseException e) {
+        } catch (RestClientException e) {
             throw new BusinessException(OrderErrorCode.TICKET_RESERVE_FAILED);
+        }
+    }
+    @Override
+    public void releaseSeat(TicketReleaseRequest request) {
+        try {
+            restClient.put()
+                    .uri("/api/tickets/status/release")
+                    .body(request)
+                    .retrieve()
+                    .toBodilessEntity();
+
+        } catch (RestClientException e) {
+            throw new BusinessException(OrderErrorCode.TICKET_RELEASE_FAILED);
         }
     }
 
     @Override
-    public void releaseSeat(TicketReleaseRequest request){
-        restClient.put()
-                .uri("/api/tickets/status/release")
-                .body(request)
-                .retrieve()
-                .toBodilessEntity();
-    }
+    public void cancelTicket(TicketCancelRequest request) {
+        try {
+            restClient.put()
+                    .uri("/api/tickets/status/canceled/release")
+                    .body(request)
+                    .retrieve()
+                    .toBodilessEntity();
 
-    @Override
-    public void cancelTicket(TicketCancelRequest request){
-        restClient.put()
-                .uri("/api/tickets/status/canceled/release")
-                .body(request)
-                .retrieve()
-                .toBodilessEntity();
+        } catch (RestClientException e) {
+            throw new BusinessException(OrderErrorCode.TICKET_RELEASE_FAILED);
+        }
     }
 
     @Override
@@ -79,14 +88,12 @@ public class TicketApiClient implements TicketClient {
                             >() {});
 
             if (response == null || response.data() == null) {
-                throw new BusinessException(
-                        OrderErrorCode.TICKET_INFO_RESPONSE_EMPTY
-                );
+                throw new BusinessException(OrderErrorCode.TICKET_INFO_RESPONSE_EMPTY);
             }
 
             return response.data();
 
-        } catch (RestClientResponseException e) {
+        } catch (RestClientException e) {
             throw new BusinessException(OrderErrorCode.TICKET_INFO_GET_FAILED);
         }
     }
