@@ -2,10 +2,7 @@ package com.programmers.kdt.order.client;
 
 import com.programmers.kdt.common.exception.BusinessException;
 import com.programmers.kdt.common.response.ApiResponse;
-import com.programmers.kdt.order.dto.TicketCancelRequest;
-import com.programmers.kdt.order.dto.TicketHoldRequest;
-import com.programmers.kdt.order.dto.TicketHoldResult;
-import com.programmers.kdt.order.dto.TicketReleaseRequest;
+import com.programmers.kdt.order.dto.*;
 import com.programmers.kdt.order.exception.OrderErrorCode;
 import lombok.RequiredArgsConstructor;
 import org.springframework.core.ParameterizedTypeReference;
@@ -36,6 +33,20 @@ public class TicketApiClient implements TicketClient {
 
         } catch (RestClientResponseException e){
             throw new BusinessException(OrderErrorCode.TICKET_HOLD_FAILED);
+        }
+    }
+
+    @Override
+    public void reserveTicket(TicketReserveRequest request){
+        try {
+            restClient.put()
+                    .uri("/api/tickets/status/reserved")
+                    .body(request)
+                    .retrieve()
+                    .toBodilessEntity();
+
+        } catch (RestClientResponseException e) {
+            throw new BusinessException(OrderErrorCode.TICKET_RESERVE_FAILED);
         }
     }
 
