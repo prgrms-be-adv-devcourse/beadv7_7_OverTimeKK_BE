@@ -5,12 +5,15 @@ import com.programmers.kdt.common.response.ApiResponse;
 import com.programmers.kdt.order.dto.TicketHoldRequest;
 import com.programmers.kdt.order.dto.TicketHoldResult;
 import com.programmers.kdt.order.dto.TicketReleaseRequest;
+import com.programmers.kdt.order.dto.TicketCancelRequest;
+import com.programmers.kdt.order.dto.TicketReserveRequest;
+import com.programmers.kdt.order.dto.OrderTicketRequest;
 import com.programmers.kdt.order.exception.OrderErrorCode;
 import lombok.RequiredArgsConstructor;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
-import org.springframework.web.client.RestClientResponseException;
+import org.springframework.web.client.RestClientException;
 
 import java.util.List;
 
@@ -33,40 +36,71 @@ public class TicketApiClient implements TicketClient {
             }
             return response.data();
 
-        } catch (RestClientResponseException e){
+        } catch (RestClientException e){
             throw new BusinessException(OrderErrorCode.TICKET_HOLD_FAILED);
         }
     }
 
     @Override
-    public List<TicketInfo> getTickets(Long userId) {
+    public void reserveTicket(TicketReserveRequest request){
         try {
-            ApiResponse<List<TicketInfo>> response = restClient.get()
-                    .uri("/api/tickets/orders?userId={userId}", userId)
+            restClient.put()
+                    .uri("/api/tickets/status/reserved")
+                    .body(request)
+                    .retrieve()
+                    .toBodilessEntity();
+
+        } catch (RestClientException e) {
+            throw new BusinessException(OrderErrorCode.TICKET_RESERVE_FAILED);
+        }
+    }
+    @Override
+    public void releaseSeat(TicketReleaseRequest request) {
+        try {
+            restClient.put()
+                    .uri("/api/tickets/status/release")
+                    .body(request)
+                    .retrieve()
+                    .toBodilessEntity();
+
+        } catch (RestClientException e) {
+            throw new BusinessException(OrderErrorCode.TICKET_RELEASE_FAILED);
+        }
+    }
+
+    @Override
+    public void cancelTicket(TicketCancelRequest request) {
+        try {
+            restClient.put()
+                    .uri("/api/tickets/status/canceled/release")
+                    .body(request)
+                    .retrieve()
+                    .toBodilessEntity();
+
+        } catch (RestClientException e) {
+            throw new BusinessException(OrderErrorCode.TICKET_RELEASE_FAILED);
+        }
+    }
+
+    @Override
+    public List<TicketInfo> getTickets(OrderTicketRequest request){
+        try {
+            ApiResponse<List<TicketInfo>> response = restClient.post()
+                    .uri("/api/tickets/orders")
+                    .body(request)
                     .retrieve()
                     .body(new ParameterizedTypeReference<
                             ApiResponse<List<TicketInfo>>
                             >() {});
 
             if (response == null || response.data() == null) {
-                throw new BusinessException(
-                        OrderErrorCode.TICKET_INFO_RESPONSE_EMPTY
-                );
+                throw new BusinessException(OrderErrorCode.TICKET_INFO_RESPONSE_EMPTY);
             }
 
             return response.data();
 
-        } catch (RestClientResponseException e) {
+        } catch (RestClientException e) {
             throw new BusinessException(OrderErrorCode.TICKET_INFO_GET_FAILED);
         }
-    }
-
-    @Override
-    public void releaseSeat(TicketReleaseRequest request){
-        restClient.put()
-                .uri("/api/tickets/status/release")
-                .body(request)
-                .retrieve()
-                .toBodilessEntity();
     }
 }

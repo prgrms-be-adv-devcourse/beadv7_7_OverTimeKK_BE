@@ -1,15 +1,15 @@
 package com.programmers.kdt.order.client;
 
 
-import com.programmers.kdt.order.dto.TicketHoldRequest;
-import com.programmers.kdt.order.dto.TicketHoldResult;
-import com.programmers.kdt.order.dto.TicketReleaseRequest;
+import com.programmers.kdt.order.dto.*;
 
 import java.util.List;
 
 public interface TicketClient {
 
     TicketHoldResult holdSeat(TicketHoldRequest ticketRequest);
+    void reserveTicket(TicketReserveRequest ticketReserveRequest);
     void releaseSeat(TicketReleaseRequest request);
-    List<TicketInfo> getTickets(Long userId);
+    void cancelTicket(TicketCancelRequest request);
+    List<TicketInfo> getTickets(OrderTicketRequest request);
 }

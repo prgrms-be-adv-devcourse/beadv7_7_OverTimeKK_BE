@@ -9,6 +9,7 @@ import com.programmers.kdt.order.dto.*;
 import com.programmers.kdt.order.entity.Order;
 import com.programmers.kdt.order.entity.OrderItem;
 import com.programmers.kdt.order.entity.OrderStatus;
+import com.programmers.kdt.order.event.TicketCancelRequestEvent;
 import com.programmers.kdt.order.event.TicketReleaseRequestEvent;
 import com.programmers.kdt.order.exception.OrderErrorCode;
 import com.programmers.kdt.order.repository.OrderRepository;
@@ -76,6 +77,13 @@ public class OrderServiceImpl implements OrderService {
     @Transactional
     public void completeOrder(Long orderId){
         Order order = findOrder(orderId);
+
+        ticketClient.reserveTicket(new TicketReserveRequest(
+                order.getTicketId(),
+                order.getItems().getFirst().getHoldKey(),
+                order.getUserId()
+        ));
+
         order.complete();
     }
 
@@ -121,7 +129,7 @@ public class OrderServiceImpl implements OrderService {
         // 결제 취소 성공 -> 주문 취소 완료
         order.cancelCompleted();
 
-        // TODO: 결제 완료 티켓 취소 API 구현 후 연동
+        publishTicketCancelEvent(order);
 
         return CancelOrderResponse.from(order);
     }
@@ -139,7 +147,7 @@ public class OrderServiceImpl implements OrderService {
             return List.of();
         }
 
-        List<TicketInfo> ticketInfos = ticketClient.getTickets(userId);
+        List<TicketInfo> ticketInfos = ticketClient.getTickets(new OrderTicketRequest(userId));
 
         Map<Long, TicketInfo> ticketInfoMap = ticketInfos.stream()
                 .collect(Collectors.toMap(
@@ -178,6 +186,12 @@ public class OrderServiceImpl implements OrderService {
                         orderItem.getTicketId(),
                         orderItem.getHoldKey()
                 )
+        );
+    }
+
+    private void publishTicketCancelEvent(Order order){
+        eventPublisher.publishEvent(
+                new TicketCancelRequestEvent(order.getTicketId(), order.getUserId(), order.getOrderId())
         );
     }
 

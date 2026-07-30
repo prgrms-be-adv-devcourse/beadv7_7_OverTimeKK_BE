@@ -1,9 +1,15 @@
 package com.programmers.kdt.user.controller;
 
+import com.programmers.kdt.common.exception.BusinessException;
+import com.programmers.kdt.common.exception.CommonErrorCode;
 import com.programmers.kdt.common.response.ApiResponse;
+import com.programmers.kdt.user.dto.LoginRequest;
+import com.programmers.kdt.user.dto.LoginResponse;
 import com.programmers.kdt.user.dto.SignUpBusinessRequest;
 import com.programmers.kdt.user.dto.SignUpIndividualRequest;
 import com.programmers.kdt.user.dto.SignUpUserResponse;
+import com.programmers.kdt.user.dto.WithdrawRequest;
+import com.programmers.kdt.user.jwt.JwtAuthFilter;
 import com.programmers.kdt.user.service.UserService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -27,6 +33,21 @@ public class UserController {
     @ResponseStatus(HttpStatus.CREATED)
     public ApiResponse<SignUpUserResponse> signUpBusiness(@Valid @RequestBody SignUpBusinessRequest request) {
         return ApiResponse.success(userService.signUpBusiness(request));
+    }
+
+    @PostMapping("/login")
+    public ApiResponse<LoginResponse> login(@Valid @RequestBody LoginRequest request) {
+        return ApiResponse.success(userService.login(request));
+    }
+
+    @DeleteMapping("/me")
+    public ApiResponse<Void> withdraw(@RequestAttribute(value = JwtAuthFilter.USER_ID_ATTRIBUTE, required = false) Long userId,
+                                       @Valid @RequestBody WithdrawRequest request) {
+        if (userId == null) {
+            throw new BusinessException(CommonErrorCode.UNAUTHORIZED);
+        }
+        userService.withdraw(userId, request);
+        return ApiResponse.success(null);
     }
 
     /**

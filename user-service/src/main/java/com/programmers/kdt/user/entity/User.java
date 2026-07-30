@@ -56,5 +56,11 @@ public class User {
         return new User(username, email, encodedPassword, Role.BUSINESS, businessName, businessNumber);
     }
 
-    // TODO: 비즈니스 메서드(withdraw)
+    public boolean isWithdrawn() {
+        return this.status == UserStatus.WITHDRAWN;
+    }
+
+    public void withdraw() {
+        this.status = UserStatus.WITHDRAWN;
+    }
 }
