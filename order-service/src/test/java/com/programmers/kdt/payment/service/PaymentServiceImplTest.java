@@ -5,7 +5,6 @@ import com.programmers.kdt.common.exception.BusinessException;
 import com.programmers.kdt.common.exception.CommonErrorCode;
 import com.programmers.kdt.order.entity.Order;
 import com.programmers.kdt.order.repository.OrderRepository;
-import com.programmers.kdt.order.service.OrderService;
 import com.programmers.kdt.payment.client.pay.OrderCompletionEventPublisher;
 import com.programmers.kdt.payment.client.pay.PaymentConfirmEvent;
 import com.programmers.kdt.payment.client.pg.*;
