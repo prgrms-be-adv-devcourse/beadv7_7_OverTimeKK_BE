@@ -25,7 +25,9 @@ services:
     restart: unless-stopped
     networks:
       - reseat-net
-    # 외부(EC2 밖)로 3306 노출 안 함 - 같은 compose 네트워크 안에서만 backend가 접근
+    ports:
+      - "127.0.0.1:3306:3306"
+    # GUI로DB 확인 가능
 
   order-service:
     image: ghcr.io/${GHCR_OWNER}/order-service:${IMAGE_TAG:-latest}
