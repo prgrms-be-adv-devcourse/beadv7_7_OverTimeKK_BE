@@ -92,6 +92,20 @@ public class TicketServiceImpl implements TicketService {
 
     @Override
     @Transactional
+    public void releaseExpiredHoldTickets() {
+        List<Ticket> expiredTickets = ticketRepository.findByTicketStatusAndHoldExpiredAtBefore(TicketStatus.HOLD, LocalDateTime.now());
+
+        for (Ticket ticket : expiredTickets) {
+            releaseTicket(ticket);
+        }
+
+        if (!expiredTickets.isEmpty()) {
+            log.info("점유시간 만료로 자동 해제된 티켓 {} 건", expiredTickets.size());
+        }
+    }
+
+    @Override
+    @Transactional
     public void standbyTicket(StandbyTicketEvent event) {
         Ticket ticket = getTicket(event.ticketId());
         ticket.standbyTicket(event.standbyUserId(), event.standbyExpiredAt());

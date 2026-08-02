@@ -15,8 +15,6 @@ import com.programmers.kdt.ticket.dto.TicketZonesResponse;
 
 import java.util.List;
 
-import java.util.List;
-
 public interface TicketService {
     CreateStandbyResponse issueStandby(Long userId, Long sessionNum, String zone);
 
@@ -25,6 +23,8 @@ public interface TicketService {
     CheckTicketHoldAvailableResponse checkTicketHoldStatus(CheckTicketHoldAvailableRequest request);
 
     void releaseHoldTicket(ReleaseTicketHoldRequest request);
+
+    void releaseExpiredHoldTickets();
 
     void standbyTicket(StandbyTicketEvent event);
 
