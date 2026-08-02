@@ -38,7 +38,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -94,9 +96,10 @@ public class TicketServiceImpl implements TicketService {
     @Transactional
     public void releaseExpiredHoldTickets() {
         List<Ticket> expiredTickets = ticketRepository.findByTicketStatusAndHoldExpiredAtBefore(TicketStatus.HOLD, LocalDateTime.now());
+        Map<ZoneAvailabilityKey, Boolean> availabilityCache = new HashMap<>();
 
         for (Ticket ticket : expiredTickets) {
-            releaseTicket(ticket);
+            releaseTicket(ticket, availabilityCache);
         }
 
         if (!expiredTickets.isEmpty()) {
@@ -218,7 +221,13 @@ public class TicketServiceImpl implements TicketService {
     }
 
     private void releaseTicket(Ticket ticket) {
-        boolean existsAvailableInZone = ticketRepository.existsByPerformanceIdAndSessionNumAndTicketStatusAndZone(ticket.getPerformanceId(), ticket.getSessionNum(), TicketStatus.AVAILABLE, ticket.getZone());
+        releaseTicket(ticket, new HashMap<>());
+    }
+
+    private void releaseTicket(Ticket ticket, Map<ZoneAvailabilityKey, Boolean> availabilityCache) {
+        ZoneAvailabilityKey key = new ZoneAvailabilityKey(ticket.getPerformanceId(), ticket.getSessionNum(), ticket.getZone());
+        boolean existsAvailableInZone = availabilityCache.computeIfAbsent(key, k ->
+                ticketRepository.existsByPerformanceIdAndSessionNumAndTicketStatusAndZone(k.performanceId(), k.sessionNum(), TicketStatus.AVAILABLE, k.zone()));
         log.info("{} 공연 {}회차 {} 구역 매진이 아닌가? {}", ticket.getPerformanceId(), ticket.getSessionNum(), ticket.getZone(), existsAvailableInZone);
 
         if (existsAvailableInZone) {
@@ -226,6 +235,9 @@ public class TicketServiceImpl implements TicketService {
         } else {
             eventPublisher.publishEvent(new StandbyCheckRequestEvent(ticket.getPerformanceId(), ticket.getSessionNum(), ticket.getZone(), ticket.getTicketId()));
         }
+    }
+
+    private record ZoneAvailabilityKey(Long performanceId, Long sessionNum, String zone) {
     }
 
     private static boolean isStandbyTicket(Ticket ticket, Long userId) {
