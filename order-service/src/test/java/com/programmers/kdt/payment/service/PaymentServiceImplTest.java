@@ -390,7 +390,7 @@ class PaymentServiceImplTest {
         @Test
         @DisplayName("PG 승인이 성공하면 PaymentConfirmEvent가 발생한다.")
         void confirmSuccessPublishesOrderCompletionEvent() {
-            when (paymentRepository.findById(1L)).thenReturn(Optional.of(payment));
+            when(paymentRepository.findById(1L)).thenReturn(Optional.of(payment));
 
             PgApproveResult approveResult = mock(PgApproveResult.class);
             when(approveResult.success()).thenReturn(true);
@@ -670,7 +670,10 @@ class PaymentServiceImplTest {
         verifyNoInteractions(pgClient);
         verifyNoInteractions(paymentRefundRepository);
 
-        ArgumentCaptor.forClass(RefundCompletedEvent.class)
+        ArgumentCaptor<RefundFailedEvent> eventCaptor = ArgumentCaptor.forClass(RefundFailedEvent.class);
+        verify(refundEventPublisher).publishFailed(eventCaptor.capture());
+        assertThat(eventCaptor.getValue().orderId()).isEqualTo(payment.getOrderId());
+        verify(refundEventPublisher, never()).publishCompleted(any());
 
     }
 
@@ -697,7 +700,7 @@ class PaymentServiceImplTest {
         assertThat(payment.getPaymentStatus()).isEqualTo(PaymentStatus.PAID);
         verifyNoInteractions(paymentRefundRepository); // return 누락 상태면 이 테스트가 실패함
         verify(refundEventPublisher).publishFailed(any());
-        verify(refundEventPublisher).publishCompleted(any());
+        verify(refundEventPublisher, never()).publishCompleted(any());
     }
 
     @Test
@@ -797,6 +800,8 @@ class PaymentServiceImplTest {
         //then
         assertThat(payment.getPaymentStatus()).isEqualTo(PaymentStatus.CANCELLED);
         verify(pointService, times(3)).rollbackPoint(any(), any(), any(), anyBoolean());
+        verify(refundEventPublisher).publishCompleted(any());
+        verify(refundEventPublisher, never()).publishFailed(any());
     }
 
     @Test
@@ -875,6 +880,8 @@ class PaymentServiceImplTest {
         assertThat(payment.getPaymentStatus()).isEqualTo(PaymentStatus.PAID);
         verifyNoInteractions(pgClient);
         verifyNoInteractions(paymentRefundRepository);
+        verify(refundEventPublisher).publishFailed(any());
+        verify(refundEventPublisher, never()).publishCompleted(any());
     }
 
     @Test
@@ -899,5 +906,33 @@ class PaymentServiceImplTest {
         assertThat(payment.getPaymentStatus()).isEqualTo(PaymentStatus.PAID);
         verifyNoInteractions(pgClient);
         verifyNoInteractions(paymentRefundRepository);
+        verify(refundEventPublisher).publishFailed(any());
+        verify(refundEventPublisher, never()).publishCompleted(any());
+    }
+
+    @Test
+    @DisplayName("포인트 환급 중 예상치 못한 RuntimeException이 발생해도 환불 자체는 완료 상태로 유지된다.")
+    void refundSuccessButPointRollbackThrowsUnexceptedException() {
+        Payment payment = Payment.create(1L, 100L, 10000L);
+        ReflectionTestUtils.setField(payment, "id", 1L);
+        payment.assignPaymentKey("PG_KEY_123");
+        payment.approve();
+        payment.requestRefund();
+
+        when(paymentRepository.findById(1L)).thenReturn(Optional.of(payment));
+        when(orderClient.getTicketId(1L)).thenReturn(10L);
+
+        when(performanceClient.getPerformanceDate(10L)).thenReturn(LocalDate.now().plusDays(4));
+        when(pgClient.cancel(any(PgCancelCommand.class)))
+                .thenReturn(new PgCancelResult(true, LocalDateTime.now()));
+        when(pointService.findUsedAmount("ORDER:1:POINT_USE")).thenReturn(3000L);
+        doThrow(new RuntimeException("unexpected"))
+                .when(pointService).rollbackPoint(any(), any(), any(), anyBoolean());
+
+        paymentService.onRefundRequested(new RefundRequestEvent(1L, "고객 요청", LocalDateTime.now()));
+
+        assertThat(payment.getPaymentStatus()).isEqualTo(PaymentStatus.CANCELLED);
+        verify(refundEventPublisher).publishCompleted(any());
+        verify(refundEventPublisher, never()).publishFailed(any());
     }
 }
