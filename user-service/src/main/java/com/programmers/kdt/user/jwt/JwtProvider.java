@@ -1,6 +1,7 @@
 package com.programmers.kdt.user.jwt;
 
 import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.JwtBuilder;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
@@ -20,27 +21,31 @@ public class JwtProvider {
 
     private static final String CLAIM_USER_ID = "userId";
     private static final String CLAIM_USERNAME = "username";
+    private static final String CLAIM_TYPE = "type";
+    private static final String TYPE_ACCESS = "access";
+    private static final String TYPE_REFRESH = "refresh";
 
     private final SecretKey key;
     private final long expirationMillis;
+    private final long refreshExpirationMillis;
 
     public JwtProvider(@Value("${jwt.secret}") String secret,
-                        @Value("${jwt.expiration-millis}") long expirationMillis) {
+                        @Value("${jwt.expiration-millis}") long expirationMillis,
+                        @Value("${jwt.refresh-expiration-millis}") long refreshExpirationMillis) {
         this.key = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
         this.expirationMillis = expirationMillis;
+        this.refreshExpirationMillis = refreshExpirationMillis;
     }
 
     public String createToken(Long userId, String username) {
-        Date now = new Date();
-        Date expiration = new Date(now.getTime() + expirationMillis);
+        return buildToken(userId, username, TYPE_ACCESS, expirationMillis, null);
+    }
 
-        return Jwts.builder()
-                .claim(CLAIM_USER_ID, userId)
-                .claim(CLAIM_USERNAME, username)
-                .issuedAt(now)
-                .expiration(expiration)
-                .signWith(key)
-                .compact();
+    /**
+     * @param tokenId 재발급(로테이션) 시 이전에 발급된 refresh token과 구분하기 위한 식별자(jti). 재사용 탐지에 사용.
+     */
+    public String createRefreshToken(Long userId, String username, String tokenId) {
+        return buildToken(userId, username, TYPE_REFRESH, refreshExpirationMillis, tokenId);
     }
 
     public Long getUserId(String token) {
@@ -51,11 +56,35 @@ public class JwtProvider {
         return parseClaims(token).get(CLAIM_USERNAME, String.class);
     }
 
+    public String getTokenId(String token) {
+        return parseClaims(token).getId();
+    }
+
+    public boolean isRefreshToken(String token) {
+        return TYPE_REFRESH.equals(parseClaims(token).get(CLAIM_TYPE, String.class));
+    }
+
     /**
      * @throws JwtException 서명 위조, 만료, 형식 오류 등 토큰이 유효하지 않은 모든 경우
      */
     public void validateToken(String token) {
         parseClaims(token);
+    }
+
+    private String buildToken(Long userId, String username, String type, long ttlMillis, String tokenId) {
+        Date now = new Date();
+        Date expiration = new Date(now.getTime() + ttlMillis);
+
+        JwtBuilder builder = Jwts.builder()
+                .claim(CLAIM_USER_ID, userId)
+                .claim(CLAIM_USERNAME, username)
+                .claim(CLAIM_TYPE, type)
+                .issuedAt(now)
+                .expiration(expiration);
+        if (tokenId != null) {
+            builder.id(tokenId);
+        }
+        return builder.signWith(key).compact();
     }
 
     private Claims parseClaims(String token) {

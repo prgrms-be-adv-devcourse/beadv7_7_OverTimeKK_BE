@@ -40,6 +40,10 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         if (token != null) {
             try {
                 jwtProvider.validateToken(token);
+                if (jwtProvider.isRefreshToken(token)) {
+                    writeUnauthorized(response);
+                    return;
+                }
                 request.setAttribute(USER_ID_ATTRIBUTE, jwtProvider.getUserId(token));
             } catch (JwtException | IllegalArgumentException e) {
                 writeUnauthorized(response);
