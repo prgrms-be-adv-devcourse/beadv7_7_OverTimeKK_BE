@@ -188,7 +188,7 @@ public class ChangeTicketStatusServiceImpl implements ChangeTicketStatusService 
     private static boolean isStandbyTicket(Ticket ticket, Long userId) {
         return ticket.getTicketStatus() == TicketStatus.CANCELED &&
                 userId.equals(ticket.getStandbyUserId()) &&
-                LocalDateTime.now().isAfter(ticket.getStandbyExpiredAt())
+                LocalDateTime.now().isBefore(ticket.getStandbyExpiredAt())
         ;
     }
 
