@@ -8,10 +8,7 @@ import com.programmers.kdt.order.repository.OrderRepository;
 import com.programmers.kdt.payment.client.pay.OrderCompletionEventPublisher;
 import com.programmers.kdt.payment.client.pay.PaymentConfirmEvent;
 import com.programmers.kdt.payment.client.pg.*;
-import com.programmers.kdt.payment.client.refund.OrderClient;
-import com.programmers.kdt.payment.client.refund.PerformanceClient;
-import com.programmers.kdt.payment.client.refund.RefundEventPublisher;
-import com.programmers.kdt.payment.client.refund.RefundRequestEvent;
+import com.programmers.kdt.payment.client.refund.*;
 import com.programmers.kdt.payment.dto.*;
 import com.programmers.kdt.payment.entity.Payment;
 import com.programmers.kdt.payment.entity.PaymentRefund;
@@ -646,6 +643,8 @@ class PaymentServiceImplTest {
             verify(paymentRefundRepository).save(refundCaptor.capture());
             assertThat(refundCaptor.getValue().getRefundAmount()).isEqualTo(4000L);
 
+            verify(refundEventPublisher).publishCompleted(any());
+
         }
     }
 
@@ -670,6 +669,9 @@ class PaymentServiceImplTest {
         assertThat(payment.getPaymentStatus()).isEqualTo(PaymentStatus.PAID);
         verifyNoInteractions(pgClient);
         verifyNoInteractions(paymentRefundRepository);
+
+        ArgumentCaptor.forClass(RefundCompletedEvent.class)
+
     }
 
     @Test
@@ -694,6 +696,8 @@ class PaymentServiceImplTest {
         //then
         assertThat(payment.getPaymentStatus()).isEqualTo(PaymentStatus.PAID);
         verifyNoInteractions(paymentRefundRepository); // return 누락 상태면 이 테스트가 실패함
+        verify(refundEventPublisher).publishFailed(any());
+        verify(refundEventPublisher).publishCompleted(any());
     }
 
     @Test
@@ -715,6 +719,9 @@ class PaymentServiceImplTest {
         assertThat(payment.getPaymentStatus()).isEqualTo(PaymentStatus.PAID);
         verifyNoInteractions(pgClient);
         verifyNoInteractions(paymentRefundRepository);
+
+        verify(refundEventPublisher).publishFailed(any());
+        verify(refundEventPublisher, never()).publishCompleted(any());
     }
 
     @Test
