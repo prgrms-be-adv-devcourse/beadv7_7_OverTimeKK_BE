@@ -179,4 +179,13 @@ public class StandbyService {
         }
         return expiredStandbys.size();
     }
+
+    //매칭결제준비
+    public void reservedStandby(Long ticketId) {
+        Optional<Standby> heldStandby = standbyRepository.findByTicketIdAndStandbyStatus(ticketId,StandbyStatus.HELD);
+        if(heldStandby.isPresent()) {
+            Standby standby = heldStandby.get();
+            standby.reserve();
+        }
+    }
 }
