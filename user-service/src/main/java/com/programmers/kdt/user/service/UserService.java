@@ -96,5 +96,10 @@ public class UserService {
         user.withdraw();
     }
 
-    // TODO: 조회 기능 추가
+    public SignUpUserResponse getUser(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException(UserErrorCode.USER_NOT_FOUND));
+
+        return SignUpUserResponse.from(user);
+    }
 }

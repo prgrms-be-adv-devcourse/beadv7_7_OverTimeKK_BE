@@ -184,4 +184,40 @@ class UserServiceTest {
                 .hasMessage(UserErrorCode.INVALID_PASSWORD.getMessage());
     }
 
+    @Test
+    void 회원_조회_성공() {
+        User user = User.signUpIndividual("user1", "user1@example.com", "encodedPassword");
+        ReflectionTestUtils.setField(user, "userId", 1L);
+
+        given(userRepository.findById(1L)).willReturn(Optional.of(user));
+
+        SignUpUserResponse response = userService.getUser(1L);
+
+        assertThat(response.userId()).isEqualTo(1L);
+        assertThat(response.username()).isEqualTo("user1");
+        assertThat(response.status()).isEqualTo(UserStatus.ACTIVE);
+    }
+
+    @Test
+    void 존재하지_않는_유저_조회시_예외() {
+        given(userRepository.findById(1L)).willReturn(Optional.empty());
+
+        assertThatThrownBy(() -> userService.getUser(1L))
+                .isInstanceOf(BusinessException.class)
+                .hasMessage(UserErrorCode.USER_NOT_FOUND.getMessage());
+    }
+
+    @Test
+    void 탈퇴한_유저도_조회는_정상_응답() {
+        User user = User.signUpIndividual("user1", "user1@example.com", "encodedPassword");
+        ReflectionTestUtils.setField(user, "userId", 1L);
+        ReflectionTestUtils.setField(user, "status", UserStatus.WITHDRAWN);
+
+        given(userRepository.findById(1L)).willReturn(Optional.of(user));
+
+        SignUpUserResponse response = userService.getUser(1L);
+
+        assertThat(response.status()).isEqualTo(UserStatus.WITHDRAWN);
+    }
+
 }
