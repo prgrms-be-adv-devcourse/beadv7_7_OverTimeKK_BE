@@ -114,7 +114,7 @@ public class UserService {
             throw new BusinessException(UserErrorCode.WITHDRAWN_USER);
         }
 
-        String accessToken = jwtProvider.createToken(user.getUserId(), user.getUsername());
+        String accessToken = jwtProvider.createToken(user.getUserId(), user.getUsername(), user.getUserType().name());
         String refreshToken = jwtProvider.createRefreshToken(user.getUserId(), user.getUsername(), newTokenId);
         return new LoginResponse(accessToken, refreshToken);
     }
@@ -124,7 +124,7 @@ public class UserService {
     }
 
     private LoginResponse issueTokens(User user) {
-        String accessToken = jwtProvider.createToken(user.getUserId(), user.getUsername());
+        String accessToken = jwtProvider.createToken(user.getUserId(), user.getUsername(), user.getUserType().name());
         String tokenId = UUID.randomUUID().toString();
         String refreshToken = jwtProvider.createRefreshToken(user.getUserId(), user.getUsername(), tokenId);
         refreshTokenStore.save(user.getUserId(), tokenId);

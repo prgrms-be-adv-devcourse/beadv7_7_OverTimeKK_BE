@@ -114,7 +114,7 @@ class UserServiceTest {
 
         given(userRepository.findByUsername(request.username())).willReturn(Optional.of(user));
         given(passwordEncoder.matches(request.password(), user.getPassword())).willReturn(true);
-        given(jwtProvider.createToken(user.getUserId(), user.getUsername())).willReturn("issued-access-token");
+        given(jwtProvider.createToken(user.getUserId(), user.getUsername(), "INDIVIDUAL")).willReturn("issued-access-token");
         given(jwtProvider.createRefreshToken(any(), any(), anyString())).willReturn("issued-refresh-token");
 
         LoginResponse response = userService.login(request);
@@ -122,6 +122,23 @@ class UserServiceTest {
         assertThat(response.accessToken()).isEqualTo("issued-access-token");
         assertThat(response.refreshToken()).isEqualTo("issued-refresh-token");
         verify(refreshTokenStore).save(any(), anyString());
+    }
+
+    @Test
+    void 사업자_회원_로그인시_토큰에_BUSINESS_role이_담긴다() {
+        LoginRequest request = new LoginRequest("biz1", "password123");
+        User user = User.signUpBusiness("biz1", "biz1@example.com", "encodedPassword", "회사이름", "123-45-67890");
+        ReflectionTestUtils.setField(user, "userId", 1L);
+
+        given(userRepository.findByUsername(request.username())).willReturn(Optional.of(user));
+        given(passwordEncoder.matches(request.password(), user.getPassword())).willReturn(true);
+        given(jwtProvider.createToken(user.getUserId(), user.getUsername(), "BUSINESS")).willReturn("issued-access-token");
+        given(jwtProvider.createRefreshToken(any(), any(), anyString())).willReturn("issued-refresh-token");
+
+        LoginResponse response = userService.login(request);
+
+        assertThat(response.accessToken()).isEqualTo("issued-access-token");
+        verify(jwtProvider).createToken(1L, "biz1", "BUSINESS");
     }
 
     @Test
@@ -226,7 +243,7 @@ class UserServiceTest {
         given(refreshTokenStore.compareAndRotate(eq(1L), eq("old-token-id"), anyString()))
                 .willReturn(RefreshTokenStore.RotateResult.ROTATED);
         given(userRepository.findById(1L)).willReturn(Optional.of(user));
-        given(jwtProvider.createToken(1L, "user1")).willReturn("new-access-token");
+        given(jwtProvider.createToken(1L, "user1", "INDIVIDUAL")).willReturn("new-access-token");
         given(jwtProvider.createRefreshToken(any(), any(), anyString())).willReturn("new-refresh-token");
 
         LoginResponse response = userService.refresh(request);
