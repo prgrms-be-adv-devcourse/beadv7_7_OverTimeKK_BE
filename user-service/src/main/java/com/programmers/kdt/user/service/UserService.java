@@ -81,11 +81,13 @@ public class UserService {
      * refresh token 로테이션: 사용된 토큰은 즉시 폐기하고 새 access/refresh token 쌍을 발급한다.
      * 이미 폐기된(예전) 토큰이 다시 들어오면 탈취로 간주해 해당 사용자의 세션을 강제 무효화한다.
      */
+    @Transactional(readOnly = true)
     public LoginResponse refresh(RefreshTokenRequest request) {
         String token = request.refreshToken();
         try {
             jwtProvider.validateToken(token);
         } catch (JwtException e) {
+            log.debug("refresh token 검증 실패: {}", e.getMessage());
             throw new BusinessException(UserErrorCode.INVALID_REFRESH_TOKEN);
         }
         if (!jwtProvider.isRefreshToken(token)) {
@@ -94,12 +96,14 @@ public class UserService {
 
         Long userId = jwtProvider.getUserId(token);
         String presentedTokenId = jwtProvider.getTokenId(token);
-        String storedTokenId = refreshTokenStore.find(userId)
-                .orElseThrow(() -> new BusinessException(UserErrorCode.INVALID_REFRESH_TOKEN));
+        String newTokenId = UUID.randomUUID().toString();
 
-        if (!storedTokenId.equals(presentedTokenId)) {
-            refreshTokenStore.delete(userId);
+        RefreshTokenStore.RotateResult rotateResult = refreshTokenStore.compareAndRotate(userId, presentedTokenId, newTokenId);
+        if (rotateResult == RefreshTokenStore.RotateResult.REUSE_DETECTED) {
             log.warn("탈취 의심: userId={}의 폐기된 refresh token이 재사용되어 세션을 강제 무효화했습니다.", userId);
+            throw new BusinessException(UserErrorCode.INVALID_REFRESH_TOKEN);
+        }
+        if (rotateResult == RefreshTokenStore.RotateResult.NOT_FOUND) {
             throw new BusinessException(UserErrorCode.INVALID_REFRESH_TOKEN);
         }
 
@@ -110,7 +114,9 @@ public class UserService {
             throw new BusinessException(UserErrorCode.WITHDRAWN_USER);
         }
 
-        return issueTokens(user);
+        String accessToken = jwtProvider.createToken(user.getUserId(), user.getUsername());
+        String refreshToken = jwtProvider.createRefreshToken(user.getUserId(), user.getUsername(), newTokenId);
+        return new LoginResponse(accessToken, refreshToken);
     }
 
     public void logout(Long userId) {

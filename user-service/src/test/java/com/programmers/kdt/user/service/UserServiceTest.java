@@ -31,6 +31,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.never;
@@ -222,7 +223,8 @@ class UserServiceTest {
         given(jwtProvider.isRefreshToken(request.refreshToken())).willReturn(true);
         given(jwtProvider.getUserId(request.refreshToken())).willReturn(1L);
         given(jwtProvider.getTokenId(request.refreshToken())).willReturn("old-token-id");
-        given(refreshTokenStore.find(1L)).willReturn(Optional.of("old-token-id"));
+        given(refreshTokenStore.compareAndRotate(eq(1L), eq("old-token-id"), anyString()))
+                .willReturn(RefreshTokenStore.RotateResult.ROTATED);
         given(userRepository.findById(1L)).willReturn(Optional.of(user));
         given(jwtProvider.createToken(1L, "user1")).willReturn("new-access-token");
         given(jwtProvider.createRefreshToken(any(), any(), anyString())).willReturn("new-refresh-token");
@@ -231,7 +233,7 @@ class UserServiceTest {
 
         assertThat(response.accessToken()).isEqualTo("new-access-token");
         assertThat(response.refreshToken()).isEqualTo("new-refresh-token");
-        verify(refreshTokenStore).save(any(), anyString());
+        verify(refreshTokenStore).compareAndRotate(eq(1L), eq("old-token-id"), anyString());
     }
 
     @Test
@@ -259,7 +261,8 @@ class UserServiceTest {
         RefreshTokenRequest request = new RefreshTokenRequest("token");
         given(jwtProvider.isRefreshToken(request.refreshToken())).willReturn(true);
         given(jwtProvider.getUserId(request.refreshToken())).willReturn(1L);
-        given(refreshTokenStore.find(1L)).willReturn(Optional.empty());
+        given(refreshTokenStore.compareAndRotate(eq(1L), any(), anyString()))
+                .willReturn(RefreshTokenStore.RotateResult.NOT_FOUND);
 
         assertThatThrownBy(() -> userService.refresh(request))
                 .isInstanceOf(BusinessException.class)
@@ -276,7 +279,8 @@ class UserServiceTest {
         given(jwtProvider.isRefreshToken(request.refreshToken())).willReturn(true);
         given(jwtProvider.getUserId(request.refreshToken())).willReturn(1L);
         given(jwtProvider.getTokenId(request.refreshToken())).willReturn("token-id");
-        given(refreshTokenStore.find(1L)).willReturn(Optional.of("token-id"));
+        given(refreshTokenStore.compareAndRotate(eq(1L), eq("token-id"), anyString()))
+                .willReturn(RefreshTokenStore.RotateResult.ROTATED);
         given(userRepository.findById(1L)).willReturn(Optional.of(user));
 
         assertThatThrownBy(() -> userService.refresh(request))
@@ -291,12 +295,12 @@ class UserServiceTest {
         given(jwtProvider.isRefreshToken(request.refreshToken())).willReturn(true);
         given(jwtProvider.getUserId(request.refreshToken())).willReturn(1L);
         given(jwtProvider.getTokenId(request.refreshToken())).willReturn("stale-token-id");
-        given(refreshTokenStore.find(1L)).willReturn(Optional.of("current-token-id"));
+        given(refreshTokenStore.compareAndRotate(eq(1L), eq("stale-token-id"), anyString()))
+                .willReturn(RefreshTokenStore.RotateResult.REUSE_DETECTED);
 
         assertThatThrownBy(() -> userService.refresh(request))
                 .isInstanceOf(BusinessException.class)
                 .hasMessage(UserErrorCode.INVALID_REFRESH_TOKEN.getMessage());
-        verify(refreshTokenStore).delete(1L);
     }
 
     @Test
