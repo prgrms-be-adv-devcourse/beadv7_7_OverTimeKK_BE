@@ -29,6 +29,39 @@ services:
       - "127.0.0.1:3306:3306"
     # GUI로DB 확인 가능
 
+  redis:
+    image: redis:8
+    container_name: reseat-redis
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    restart: unless-stopped
+    networks:
+      - reseat-net
+    # user-service의 refresh token 저장용. 호스트로 노출 안 함 - 내부 네트워크로만 접근
+
+  user-service:
+    image: ghcr.io/${GHCR_OWNER}/user-service:${IMAGE_TAG:-latest}
+    container_name: user-service
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://db:3306/reseat
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_DATA_REDIS_PORT: 6379
+    restart: unless-stopped
+    networks:
+      - reseat-net
+    # 8081 호스트로 노출 안 함 - nginx가 내부 네트워크로만 프록시
+
   order-service:
     image: ghcr.io/${GHCR_OWNER}/order-service:${IMAGE_TAG:-latest}
     container_name: order-service
@@ -84,6 +117,7 @@ services:
       - ./certbot/www:/var/www/certbot:ro
       - ./certbot/conf:/etc/letsencrypt:ro
     depends_on:
+      - user-service
       - order-service
       - performance-service
       - frontend
