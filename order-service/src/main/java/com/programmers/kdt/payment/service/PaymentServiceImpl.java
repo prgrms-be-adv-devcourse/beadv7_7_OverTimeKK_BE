@@ -3,12 +3,15 @@ package com.programmers.kdt.payment.service;
 import com.programmers.kdt.common.exception.BusinessException;
 import com.programmers.kdt.order.entity.Order;
 import com.programmers.kdt.order.repository.OrderRepository;
+import com.programmers.kdt.payment.client.pay.OrderCompletionEventPublisher;
+import com.programmers.kdt.payment.client.pay.PaymentConfirmEvent;
 import com.programmers.kdt.payment.client.pg.*;
 import com.programmers.kdt.payment.client.refund.*;
 import com.programmers.kdt.payment.dto.*;
 import com.programmers.kdt.payment.entity.Payment;
 import com.programmers.kdt.payment.entity.PaymentRefund;
 import com.programmers.kdt.payment.entity.PaymentStatus;
+import com.programmers.kdt.payment.entity.RefundPolicy;
 import com.programmers.kdt.payment.exception.PaymentErrorCode;
 import com.programmers.kdt.payment.exception.PointErrorCode;
 import com.programmers.kdt.payment.repository.PaymentRefundRepository;
@@ -43,6 +46,8 @@ public class PaymentServiceImpl implements PaymentService{
     private final OrderClient orderClient;
     private final PgClient pgClient;
     private final PointService pointService;
+    private final OrderCompletionEventPublisher orderCompletionEventPublisher;
+
 
 
     // 결제 생성
@@ -107,6 +112,7 @@ public class PaymentServiceImpl implements PaymentService{
         // 결제 요청 성공 & 실패 분기
         if (approveResult.success()) {
             payment.approve();
+            orderCompletionEventPublisher.publish(new PaymentConfirmEvent(payment.getOrderId(), payment.getId()));
         } else {
             payment.fail();
             rollbackFailedPoint(payment.getOrderId(), usedPoint);

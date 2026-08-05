@@ -1,12 +1,25 @@
 package com.programmers.kdt.order.dto;
 
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+
+import java.time.LocalDateTime;
 
 public record CreateOrderRequest(
         @NotNull
-        Long userId, // 로그인 토큰에서 서버가 꺼냄 --> 추후 삭제 예정
+        Long ticketId,
 
         @NotNull
-        Long ticketId
+        Long userId,
+
+        @NotNull
+        Long price,
+
+        @NotNull
+        LocalDateTime expiredAt,
+
+        @NotBlank
+        String holdKey
+
 ) {
 }

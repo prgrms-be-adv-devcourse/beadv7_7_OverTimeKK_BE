@@ -1,30 +1,30 @@
 package com.programmers.kdt.ticket.service;
 
-import com.programmers.kdt.common.TimeLimits;
 import com.programmers.kdt.common.exception.BusinessException;
+import com.programmers.kdt.performance.entity.PerformanceSeatPrice;
 import com.programmers.kdt.performance.entity.PerformanceSession;
 import com.programmers.kdt.performance.entity.PerformanceSessionId;
 import com.programmers.kdt.performance.exception.PerformanceErrorCode;
+import com.programmers.kdt.performance.repository.PerformanceSeatPriceRepository;
 import com.programmers.kdt.performance.repository.PerformanceSessionRepository;
 import com.programmers.kdt.standby.event.StandbyTicketEvent;
-import com.programmers.kdt.ticket.dto.CheckTicketHoldAvailableRequest;
-import com.programmers.kdt.ticket.dto.CheckTicketHoldAvailableResponse;
 import com.programmers.kdt.ticket.dto.CreateStandbyResponse;
+import com.programmers.kdt.ticket.dto.OrderTicketResponse;
 import com.programmers.kdt.ticket.dto.SessionStartDateResponse;
+import com.programmers.kdt.ticket.dto.TicketZoneRequest;
+import com.programmers.kdt.ticket.dto.TicketZoneResponse;
+import com.programmers.kdt.ticket.dto.TicketZonesResponse;
 import com.programmers.kdt.ticket.entity.Ticket;
-import com.programmers.kdt.ticket.entity.TicketStatus;
-import com.programmers.kdt.ticket.event.TryMatchEvent;
 import com.programmers.kdt.ticket.exception.TicketErrorCode;
 import com.programmers.kdt.ticket.repository.TicketRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.NonNull;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -33,8 +33,7 @@ public class TicketServiceImpl implements TicketService {
 
     private final TicketRepository ticketRepository;
     private final PerformanceSessionRepository sessionRepository;
-
-    private final ApplicationEventPublisher eventPublisher;
+    private final PerformanceSeatPriceRepository performanceSeatPriceRepository;
 
     @Override
     public CreateStandbyResponse issueStandby(Long userId, Long sessionNum, String zone) {
@@ -56,69 +55,26 @@ public class TicketServiceImpl implements TicketService {
 
     @Override
     @Transactional
-    public CheckTicketHoldAvailableResponse checkTicketHoldStatus(CheckTicketHoldAvailableRequest request) {
-        Long userId = request.userId();
-        Long ticketId = request.ticketId();
-
-        Ticket ticket = getTicket(ticketId);
-
-        if (!isStandbyTicket(ticket, userId) && !isPossibleToHold(ticket)) {
-            throw new BusinessException(TicketErrorCode.IMPOSSIBLE_HOLD_TICKET);
-        }
-
-        LocalDateTime holdExpiredAt = LocalDateTime.now().plusMinutes(TimeLimits.orderHoldTicket5Min);
-        ticket.holdTicket(userId, holdExpiredAt);
-        return new CheckTicketHoldAvailableResponse(ticket.getTicketId(), ticket.getPrice(), holdExpiredAt);
-    }
-
-    @Override
-    @Transactional
-    public void releaseHoldTicket(Long ticketId) {
-        Ticket ticket = getTicket(ticketId);
-
-        /* Todo : 현재 문제점이 API 날리면 그냥 release 됨.
-         * 비즈니스 로직 추가 필요해보임
-         * UUID 값을 통해 점유 요청했던 UUID 값이 맞는지 확인
-         * */
-
-        if (isSoldOut(ticket)) {
-            ticket.releaseToStandby();
-            eventPublisher.publishEvent(new TryMatchEvent(ticketId));
-        } else {
-            ticket.releaseToAvailable();
-        }
-    }
-
-    private boolean isSoldOut(Ticket ticket) {
-        boolean isAvailableInZone = ticketRepository.existsByPerformanceIdAndSessionNumAndTicketStatusAndZone(ticket.getPerformanceId(), ticket.getSessionNum(), TicketStatus.AVAILABLE, ticket.getZone());
-        log.info("{} 공연 {}회차 {} 구역 매진이 아닌가? {}", ticket.getPerformanceId(), ticket.getSessionNum(), ticket.getZone(), isAvailableInZone);
-
-        // 대기자 존재여부 확인
-        // Rest API 요청 중
-
-        return !isAvailableInZone;
-    }
-
-    private @NonNull Ticket getTicket(Long ticketId) {
-        return ticketRepository.findById(ticketId)
-                .orElseThrow(() -> new BusinessException(TicketErrorCode.TICKET_NOT_FOUND));
-    }
-
-    @Override
-    @Transactional
     public void standbyTicket(StandbyTicketEvent event) {
         Ticket ticket = getTicket(event.ticketId());
         ticket.standbyTicket(event.standbyUserId(), event.standbyExpiredAt());
     }
 
-    private boolean isStandbyTicket(Ticket ticket, Long userId) {
-        return ticket.getTicketStatus() == TicketStatus.CANCELED &&
-                userId.equals(ticket.getStandbyUserId()) &&
-                LocalDateTime.now().isAfter(ticket.getStandbyExpiredAt())
-        ;
+    @Override
+    public List<OrderTicketResponse> findOrderedTicketInfo(Long userId) {
+        // TODO : 페이징처리 필요
+        return ticketRepository.findTicketsByBuyUserId(userId);
     }
 
-    private boolean isPossibleToHold(Ticket ticket) {
-        return ticket.getTicketStatus() == TicketStatus.AVAILABLE;
+    @Override
+    public TicketZonesResponse getTicketZone(TicketZoneRequest request) {
+        List<TicketZoneResponse> response = ticketRepository.findByZoneAndPerformance(request.performanceId(), request.sessionNum(), request.zone());
+        PerformanceSeatPrice seatPrice = performanceSeatPriceRepository.findByPerformance_PerformanceIdAndZone(request.performanceId(), request.zone());
+        return new TicketZonesResponse(seatPrice.getZone(), seatPrice.getPrice(), response);
+    }
+
+    private @NonNull Ticket getTicket(Long ticketId) {
+        return ticketRepository.findById(ticketId)
+                .orElseThrow(() -> new BusinessException(TicketErrorCode.TICKET_NOT_FOUND));
     }
 }

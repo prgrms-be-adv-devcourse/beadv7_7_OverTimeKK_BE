@@ -10,11 +10,13 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 public interface OrderRepository extends JpaRepository<Order, Long> {
-    List<Order> findByUserId(Long userId);
     List<Order> findAllByOrderStatusAndExpiresAtLessThanEqual(
             OrderStatus orderStatus,
             LocalDateTime expiresAt
     );
+
+    List<Order> findByUserIdAndOrderStatusOrderByCreatedAtDesc(Long userId, OrderStatus orderStatus);
+
     @Query("""
         select distinct o
         from Order o

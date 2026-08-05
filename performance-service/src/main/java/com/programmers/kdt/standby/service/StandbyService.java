@@ -1,6 +1,5 @@
 package com.programmers.kdt.standby.service;
 
-import com.programmers.kdt.common.TimeLimits;
 import com.programmers.kdt.common.exception.BusinessException;
 import com.programmers.kdt.performance.entity.PerformanceSession;
 import com.programmers.kdt.performance.entity.PerformanceSessionId;
@@ -11,11 +10,11 @@ import com.programmers.kdt.standby.dto.CreateStandbyResponse;
 import com.programmers.kdt.standby.dto.StandbyRankResponse;
 import com.programmers.kdt.standby.entity.Standby;
 import com.programmers.kdt.standby.entity.StandbyStatus;
+import com.programmers.kdt.standby.event.StandbyCheckResponseEvent;
 import com.programmers.kdt.standby.event.StandbyTicketEvent;
 import com.programmers.kdt.standby.exception.StandbyErrorCode;
 import com.programmers.kdt.standby.repository.StandbyRepository;
-import com.programmers.kdt.ticket.entity.Ticket;
-import com.programmers.kdt.ticket.exception.TicketErrorCode;
+import com.programmers.kdt.ticket.event.StandbyCheckRequestEvent;
 import com.programmers.kdt.ticket.repository.TicketRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
@@ -99,14 +98,10 @@ public class StandbyService {
             throw new BusinessException(StandbyErrorCode.ZONE_NOT_SOLD_OUT);
         }
     }
-
-    public Optional<Long> tryMatch(Long ticketId) {
-        Ticket ticket = ticketRepository.findById(ticketId)
-                .orElseThrow(() -> new BusinessException(TicketErrorCode.TICKET_NOT_FOUND, ticketId));
-        PerformanceSession session = findSession(ticket.getPerformanceId(), ticket.getSessionNum());
-
-        return matchNextCandidate(session, ticket.getZone(), ticketId)
-                .map(Standby::getStandbyId);
+   public void StandbyCheck (StandbyCheckRequestEvent event) {
+        PerformanceSession session = findSession(event.performanceId(),event.sessionNum());
+        boolean existsStandby = matchNextCandidate(session, event.zone(), event.ticketId()).isPresent();
+        eventPublisher.publishEvent(new StandbyCheckResponseEvent(event.ticketId(), existsStandby));
     }
 
     // 매칭 성사 시 hold() 처리와 ticket 알림
@@ -116,9 +111,8 @@ public class StandbyService {
                 .findMatchCandidate(session, zone, StandbyStatus.WAITING)
                 .map(matched -> {
                     matched.hold(zone, ticketId);
-                    LocalDateTime standbyExpiredAt = matched.getHeldAt().plusMinutes(TimeLimits.standbyHoldTicket30Min);
                     eventPublisher.publishEvent(
-                            new StandbyTicketEvent(ticketId, matched.getUserId(), standbyExpiredAt));
+                            new StandbyTicketEvent(ticketId, matched.getUserId(), matched.getExpiredAt()));
                     return matched;
                 });
     }
@@ -170,5 +164,28 @@ public class StandbyService {
         return standby;
     }
 
+    // 매칭(HELD)후 결제 제한시간(30분)이 지난 건 취소
+    public int expireHeldStandbys() {
+        List<Standby> expiredStandbys = standbyRepository
+                .findAllByStandbyStatusAndExpiredAtLessThanEqual(StandbyStatus.HELD, LocalDateTime.now());
+
+        for (Standby standby : expiredStandbys) {
+            String matchedZone = standby.getMatchedZone();
+            Long ticketId = standby.getTicketId();
+            PerformanceSession session = standby.getPerformanceSession();
+
+            standby.cancel();
+            matchNextCandidate(session, matchedZone, ticketId);
+        }
+        return expiredStandbys.size();
+    }
+
     //매칭결제준비
+    public void reservedStandby(Long ticketId) {
+        Optional<Standby> heldStandby = standbyRepository.findByTicketIdAndStandbyStatus(ticketId,StandbyStatus.HELD);
+        if(heldStandby.isPresent()) {
+            Standby standby = heldStandby.get();
+            standby.reserve();
+        }
+    }
 }

@@ -1,5 +1,6 @@
 package com.programmers.kdt.ticket.dto;
 
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
 public record CheckTicketHoldAvailableRequest(
@@ -7,6 +8,9 @@ public record CheckTicketHoldAvailableRequest(
         Long ticketId,
 
         @NotNull(message = "주문자 정보를 입력해주세요.")
-        Long userId
+        Long userId,
+
+        @NotBlank(message = "일반/대기주문 케이스를 입력해주세요.")
+        String orderType
 ) {
 }

@@ -20,10 +20,12 @@ public interface OrderService {
     void startPayment(Long orderId);
 
     // 주문 취소
-    CancelOrderResponse cancelOrder(Long orderId, CancelOrderRequest request);
+    CancelOrderResponse cancelCompletedOrder(Long orderId, CancelOrderRequest request);
 
     // 주문 내역 조회
     List<GetOrderHistoryResponse> getOrderHistory(Long userId);
+
+    CancelOrderResponse cancelPendingOrder(Long orderId);
 
     List<OrderResponse> getOrders(List<Long> ticketIds);
 }
