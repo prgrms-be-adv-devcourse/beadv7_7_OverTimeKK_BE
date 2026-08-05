@@ -25,6 +25,7 @@ public class PaymentKeyConverter implements AttributeConverter<String, String> {
     private static final String TRANSFORMATION = "AES/GCM/NoPadding";
     private static final int IV_LENGTH_BYTE = 12; // GCM 권장 IV 길이(96bit)
     private static final int TAG_LENGTH_BIT = 128; // 인증 태그 길이
+    private static final SecureRandom SECURE_RANDOM = new SecureRandom();
 
     @Value("${encryption.payment-key-secret}")
     private String secret;
@@ -36,7 +37,7 @@ public class PaymentKeyConverter implements AttributeConverter<String, String> {
         }
         try {
             byte[] iv = new byte[IV_LENGTH_BYTE];
-            SecureRandom.getInstanceStrong().nextBytes(iv);
+            SECURE_RANDOM.nextBytes(iv);
 
             Cipher cipher = Cipher.getInstance(TRANSFORMATION);
             cipher.init(Cipher.ENCRYPT_MODE, getSecretKey(), new GCMParameterSpec(TAG_LENGTH_BIT, iv));
