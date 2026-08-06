@@ -1,5 +1,6 @@
 package com.programmers.kdt.user.entity;
 
+import com.programmers.kdt.common.entity.BaseTimeEntity;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -9,10 +10,14 @@ import lombok.NoArgsConstructor;
  * 주의: MySQL 예약어 회피 위해 테이블명은 app_user로 지정
  */
 @Entity
-@Table(name = "app_user")
+@Table(name = "app_user", uniqueConstraints = {
+        @UniqueConstraint(name = "uk_app_user_username", columnNames = "username"),
+        @UniqueConstraint(name = "uk_app_user_email", columnNames = "email"),
+        @UniqueConstraint(name = "uk_app_user_business_number", columnNames = "businessNumber")
+})
 @Getter
 @NoArgsConstructor
-public class User {
+public class User extends BaseTimeEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -32,12 +37,15 @@ public class User {
     @Enumerated(EnumType.STRING)
     private UserStatus status;
 
+    private boolean emailVerified;
+
     private User(String username, String email, String encodedPassword, Role userType) {
         this.username = username;
         this.email = email;
         this.password = encodedPassword;
         this.userType = userType;
         this.status = UserStatus.ACTIVE;
+        this.emailVerified = true;
     }
 
     private User(String username, String email, String encodedPassword, Role userType,
