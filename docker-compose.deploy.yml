@@ -57,6 +57,7 @@ services:
       SPRING_DATASOURCE_PASSWORD: ${MYSQL_ROOT_PASSWORD}
       SPRING_DATA_REDIS_HOST: redis
       SPRING_DATA_REDIS_PORT: 6379
+      JWT_SECRET: ${JWT_SECRET}
     restart: unless-stopped
     networks:
       - reseat-net
@@ -77,6 +78,7 @@ services:
       ENCRYPTION_SECRET_KEY: ${ENCRYPTION_SECRET_KEY}
       TOSS_SECRET_KEY: ${TOSS_SECRET_KEY}
       TOSS_CLIENT_KEY: ${TOSS_CLIENT_KEY}
+      JWT_SECRET: ${JWT_SECRET}
     restart: unless-stopped
     networks:
       - reseat-net
@@ -93,6 +95,7 @@ services:
       SPRING_DATASOURCE_USERNAME: root
       SPRING_DATASOURCE_PASSWORD: ${MYSQL_ROOT_PASSWORD}
       ORDER_SERVICE_URL: http://order-service:8082
+      JWT_SECRET: ${JWT_SECRET}
     restart: unless-stopped
     networks:
       - reseat-net
