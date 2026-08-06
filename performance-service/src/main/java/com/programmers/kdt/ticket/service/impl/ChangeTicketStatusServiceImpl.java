@@ -1,34 +1,24 @@
-package com.programmers.kdt.ticket.service;
+package com.programmers.kdt.ticket.service.impl;
 
 import com.programmers.kdt.common.TimeLimits;
 import com.programmers.kdt.common.constant.OrderTypeCode;
 import com.programmers.kdt.common.exception.BusinessException;
 import com.programmers.kdt.common.exception.CommonErrorCode;
 import com.programmers.kdt.common.util.TicketKeyGenerator;
-import com.programmers.kdt.performance.entity.PerformanceSeatPrice;
-import com.programmers.kdt.performance.entity.PerformanceSession;
-import com.programmers.kdt.performance.entity.PerformanceSessionId;
-import com.programmers.kdt.performance.exception.PerformanceErrorCode;
-import com.programmers.kdt.performance.repository.PerformanceSeatPriceRepository;
-import com.programmers.kdt.performance.repository.PerformanceSessionRepository;
 import com.programmers.kdt.standby.event.StandbyCheckResponseEvent;
-import com.programmers.kdt.standby.event.StandbyTicketEvent;
 import com.programmers.kdt.ticket.dto.CancelTicketStatusRequest;
 import com.programmers.kdt.ticket.dto.CheckTicketHoldAvailableRequest;
 import com.programmers.kdt.ticket.dto.CheckTicketHoldAvailableResponse;
-import com.programmers.kdt.ticket.dto.CreateStandbyResponse;
-import com.programmers.kdt.ticket.dto.OrderTicketResponse;
 import com.programmers.kdt.ticket.dto.ReleaseTicketHoldRequest;
 import com.programmers.kdt.ticket.dto.ReservedTicketRequest;
-import com.programmers.kdt.ticket.dto.SessionStartDateResponse;
-import com.programmers.kdt.ticket.dto.TicketZoneRequest;
-import com.programmers.kdt.ticket.dto.TicketZoneResponse;
-import com.programmers.kdt.ticket.dto.TicketZonesResponse;
 import com.programmers.kdt.ticket.entity.Ticket;
 import com.programmers.kdt.ticket.entity.TicketStatus;
 import com.programmers.kdt.ticket.event.StandbyCheckRequestEvent;
+import com.programmers.kdt.ticket.event.StandbyTicketReservedEvent;
 import com.programmers.kdt.ticket.exception.TicketErrorCode;
 import com.programmers.kdt.ticket.repository.TicketRepository;
+import com.programmers.kdt.ticket.service.ChangeTicketStatusService;
+import com.programmers.kdt.ticket.dto.SessionZoneKey;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.NonNull;
@@ -36,38 +26,18 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
 @Slf4j
-public class TicketServiceImpl implements TicketService {
+public class ChangeTicketStatusServiceImpl implements ChangeTicketStatusService {
 
     private final TicketRepository ticketRepository;
-    private final PerformanceSessionRepository sessionRepository;
-
     private final ApplicationEventPublisher eventPublisher;
-    private final PerformanceSeatPriceRepository performanceSeatPriceRepository;
-
-    @Override
-    public CreateStandbyResponse issueStandby(Long userId, Long sessionNum, String zone) {
-        // TODO: (sessionNum, zone) 단위로 순번 채번
-        return null;
-    }
-
-    @Override
-    public SessionStartDateResponse getSessionStartDate(Long ticketId) {
-        Ticket ticket = ticketRepository.findById(ticketId)
-                .orElseThrow(() -> new BusinessException(TicketErrorCode.TICKET_NOT_FOUND, ticketId));
-
-        PerformanceSession session = sessionRepository.findById(new PerformanceSessionId(ticket.getSessionNum(), ticket.getPerformanceId()))
-                .orElseThrow(() -> new BusinessException(PerformanceErrorCode.PERFORMANCE_SESSION_NOT_FOUND));
-
-        LocalDate sessionStartDate = session.getPerformanceStartAt().toLocalDate();
-        return new SessionStartDateResponse(sessionStartDate);
-    }
 
     @Override
     @Transactional
@@ -91,10 +61,21 @@ public class TicketServiceImpl implements TicketService {
     }
 
     @Override
+    public List<Long> findExpiredHoldTicketIds() {
+        return ticketRepository.findByTicketStatusAndHoldExpiredAtBefore(TicketStatus.HOLD, LocalDateTime.now())
+                .stream()
+                .map(Ticket::getTicketId)
+                .toList();
+    }
+
+    @Override
     @Transactional
-    public void standbyTicket(StandbyTicketEvent event) {
-        Ticket ticket = getTicket(event.ticketId());
-        ticket.standbyTicket(event.standbyUserId(), event.standbyExpiredAt());
+    public void releaseExpiredHoldTicket(Long ticketId, Map<SessionZoneKey, Boolean> zoneAvailabilityCache) {
+        Ticket ticket = getTicket(ticketId);
+        if (ticket.getTicketStatus() != TicketStatus.HOLD) {
+            return;
+        }
+        releaseTicket(ticket, zoneAvailabilityCache);
     }
 
     @Override
@@ -107,19 +88,6 @@ public class TicketServiceImpl implements TicketService {
         } else {
             ticket.releaseToAvailable();
         }
-    }
-
-    @Override
-    public List<OrderTicketResponse> findOrderedTicketInfo(Long userId) {
-        // TODO : 페이징처리 필요
-        return ticketRepository.findTicketsByBuyUserId(userId);
-    }
-
-    @Override
-    public TicketZonesResponse getTicketZone(TicketZoneRequest request) {
-        List<TicketZoneResponse> response = ticketRepository.findByZoneAndPerformance(request.performanceId(), request.sessionNum(), request.zone());
-        PerformanceSeatPrice seatPrice = performanceSeatPriceRepository.findByPerformance_PerformanceIdAndZone(request.performanceId(), request.zone());
-        return new TicketZonesResponse(seatPrice.getZone(), seatPrice.getPrice(), response);
     }
 
     @Override
@@ -136,6 +104,10 @@ public class TicketServiceImpl implements TicketService {
         Ticket ticket = getTicket(request.ticketId());
         validatePossibleReservedHoldTicket(ticket, request.holdKey());
         ticket.reservedTicket(request.userId());
+        //대기표에서 매칭된 상태의 경우
+        if (ticket.getStandbyUserId() != null) {
+            eventPublisher.publishEvent(new StandbyTicketReservedEvent(ticket.getTicketId()));
+        }
     }
 
     private static void validateNotReservedTicket(Ticket ticket) {
@@ -169,7 +141,7 @@ public class TicketServiceImpl implements TicketService {
         validateHoldStatus(ticket);
 
         if (LocalDateTime.now().isAfter(ticket.getHoldExpiredAt())) {
-            throw  new BusinessException(TicketErrorCode.HOLD_TICKET_EXPIRED);
+            throw new BusinessException(TicketErrorCode.HOLD_TICKET_EXPIRED);
         }
 
         if (holdKey == null || !holdKey.equals(ticket.getHoldKey())) {
@@ -204,7 +176,13 @@ public class TicketServiceImpl implements TicketService {
     }
 
     private void releaseTicket(Ticket ticket) {
-        boolean existsAvailableInZone = ticketRepository.existsByPerformanceIdAndSessionNumAndTicketStatusAndZone(ticket.getPerformanceId(), ticket.getSessionNum(), TicketStatus.AVAILABLE, ticket.getZone());
+        releaseTicket(ticket, new HashMap<>());
+    }
+
+    private void releaseTicket(Ticket ticket, Map<SessionZoneKey, Boolean> availabilityCache) {
+        SessionZoneKey key = new SessionZoneKey(ticket.getPerformanceId(), ticket.getSessionNum(), ticket.getZone());
+        boolean existsAvailableInZone = availabilityCache.computeIfAbsent(key, k ->
+                ticketRepository.existsByPerformanceIdAndSessionNumAndTicketStatusAndZone(k.performanceId(), k.sessionNum(), TicketStatus.AVAILABLE, k.zone()));
         log.info("{} 공연 {}회차 {} 구역 매진이 아닌가? {}", ticket.getPerformanceId(), ticket.getSessionNum(), ticket.getZone(), existsAvailableInZone);
 
         if (existsAvailableInZone) {
@@ -217,7 +195,7 @@ public class TicketServiceImpl implements TicketService {
     private static boolean isStandbyTicket(Ticket ticket, Long userId) {
         return ticket.getTicketStatus() == TicketStatus.CANCELED &&
                 userId.equals(ticket.getStandbyUserId()) &&
-                LocalDateTime.now().isAfter(ticket.getStandbyExpiredAt())
+                LocalDateTime.now().isBefore(ticket.getStandbyExpiredAt())
         ;
     }
 

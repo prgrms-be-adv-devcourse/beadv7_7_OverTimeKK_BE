@@ -42,3 +42,11 @@ out/
 .vscode/
 
 .DS_Store
+
+
+### individual ###
+
+/memo/
+
+## observability ##
+logs/
