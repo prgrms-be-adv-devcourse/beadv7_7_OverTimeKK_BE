@@ -6,7 +6,7 @@ import org.springframework.stereotype.Component;
 
 @Component
 @RequiredArgsConstructor
-public class SpringOrderCompletionEventPublisher implements PaymentResultEventPublisher {
+public class SpringPaymentResultEventPublisher implements PaymentResultEventPublisher {
 
     private final ApplicationEventPublisher eventPublisher;
 
