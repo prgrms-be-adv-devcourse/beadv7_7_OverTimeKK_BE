@@ -2,10 +2,14 @@ package com.programmers.kdt.image.service;
 
 import com.programmers.kdt.image.dto.ImgUploadUrlResponse;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
+import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignRequest;
+import software.amazon.awssdk.services.s3.presigner.model.PresignedGetObjectRequest;
 import software.amazon.awssdk.services.s3.presigner.model.PresignedPutObjectRequest;
 import software.amazon.awssdk.services.s3.presigner.model.PutObjectPresignRequest;
 
@@ -13,11 +17,13 @@ import java.time.Duration;
 import java.util.Set;
 import java.util.UUID;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class S3ImageService {
 
     private static final Duration UPLOAD_URL_EXPIRED = Duration.ofMinutes(5);
+    private static final Duration ALLOWED_GET_URL_EXPIRED = Duration.ofMinutes(30);
 
     private static final Set<String> ALLOWED_CONTENT_TYPES = Set.of(
             "image/jpeg",
@@ -84,4 +90,32 @@ public class S3ImageService {
                 .substring(dotIndex)
                 .toLowerCase();
     }
+
+    public String getPresignedGetUrl(String objectKey) {
+        log.info("object key : {}", objectKey);
+        if (objectKey == null || objectKey.isEmpty()) {
+            log.info("0. empty image pass");
+            return "";
+        }
+
+        log.info("1. 요청시작");
+        GetObjectRequest getObjectRequest = GetObjectRequest.builder()
+                .bucket(bucket)
+                .key(objectKey)
+                .build();
+
+        log.info("2. get object request ");
+        GetObjectPresignRequest presignRequest =
+                GetObjectPresignRequest.builder()
+                        .signatureDuration(ALLOWED_GET_URL_EXPIRED)
+                        .getObjectRequest(getObjectRequest)
+                        .build();
+
+        log.info("3. get presign request");
+        PresignedGetObjectRequest presignedRequest = s3Presigner.presignGetObject(presignRequest);
+
+        log.info("4. URL : {}", presignedRequest.url().toString());
+        return presignedRequest.url().toString();
+    }
+
 }
