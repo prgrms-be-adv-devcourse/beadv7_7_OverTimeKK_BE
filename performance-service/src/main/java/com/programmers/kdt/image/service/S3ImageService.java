@@ -2,7 +2,6 @@ package com.programmers.kdt.image.service;
 
 import com.programmers.kdt.image.dto.ImgUploadUrlResponse;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
@@ -17,7 +16,6 @@ import java.time.Duration;
 import java.util.Set;
 import java.util.UUID;
 
-@Slf4j
 @Service
 @RequiredArgsConstructor
 public class S3ImageService {
@@ -92,29 +90,24 @@ public class S3ImageService {
     }
 
     public String getPresignedGetUrl(String objectKey) {
-        log.info("object key : {}", objectKey);
+
         if (objectKey == null || objectKey.isEmpty()) {
-            log.info("0. empty image pass");
             return "";
         }
 
-        log.info("1. 요청시작");
         GetObjectRequest getObjectRequest = GetObjectRequest.builder()
                 .bucket(bucket)
                 .key(objectKey)
                 .build();
 
-        log.info("2. get object request ");
         GetObjectPresignRequest presignRequest =
                 GetObjectPresignRequest.builder()
                         .signatureDuration(ALLOWED_GET_URL_EXPIRED)
                         .getObjectRequest(getObjectRequest)
                         .build();
 
-        log.info("3. get presign request");
         PresignedGetObjectRequest presignedRequest = s3Presigner.presignGetObject(presignRequest);
 
-        log.info("4. URL : {}", presignedRequest.url().toString());
         return presignedRequest.url().toString();
     }
 
