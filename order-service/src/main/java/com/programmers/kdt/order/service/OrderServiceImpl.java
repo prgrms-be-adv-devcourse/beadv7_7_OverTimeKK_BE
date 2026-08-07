@@ -194,4 +194,11 @@ public class OrderServiceImpl implements OrderService {
         );
     }
 
+    @Override
+    @Transactional
+    public void handlePaymentFailed(Long orderId){
+        Order order = findOrder(orderId);
+        order.failPayment();
+    }
+
 }
