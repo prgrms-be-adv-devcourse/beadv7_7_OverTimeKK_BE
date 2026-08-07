@@ -12,7 +12,6 @@ public class EmailSender {
 
     private final JavaMailSender mailSender;
 
-
     public EmailSender(JavaMailSender mailSender) {
         this.mailSender = mailSender;
     }

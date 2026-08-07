@@ -1,6 +1,11 @@
 HELP.md
 .gradle
 build/
+
+### Deploy ###
+.env
+certbot/conf/
+certbot/www/
 !gradle/wrapper/gradle-wrapper.jar
 !**/src/main/**/build/
 !**/src/test/**/build/
@@ -42,3 +47,6 @@ out/
 ### individual ###
 
 /memo/
+
+## observability ##
+logs/
