@@ -21,6 +21,11 @@ public class MockPgClient implements PgClient {
 
     @Override
     public PgApproveResult approve(PgApproveCommand command) {
+//        try {
+//            Thread.sleep(3000);
+//        } catch (InterruptedException e) {
+//            throw new RuntimeException(e);
+//        }
         return new PgApproveResult(true, LocalDateTime.now());
     }
 

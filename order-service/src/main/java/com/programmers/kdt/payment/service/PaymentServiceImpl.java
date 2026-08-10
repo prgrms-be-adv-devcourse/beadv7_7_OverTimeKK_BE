@@ -28,6 +28,7 @@ import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -49,6 +50,7 @@ public class PaymentServiceImpl implements PaymentService{
     private final PgClient pgClient;
     private final PointService pointService;
     private final PaymentResultEventPublisher paymentResultEventPublisher;
+    private final TransactionTemplate transactionTemplate;
 
     // 결제 생성
     @Transactional
@@ -98,7 +100,6 @@ public class PaymentServiceImpl implements PaymentService{
     }
 
     // 결제 확인
-    @Transactional
     public ConfirmPaymentResponse confirm(Long paymentId, ConfirmPaymentRequest request) {
         Payment payment = getPayment(paymentId);
 
@@ -107,23 +108,36 @@ public class PaymentServiceImpl implements PaymentService{
             throw new BusinessException(PaymentErrorCode.INVALID_PAYMENT_STATUS, payment.getPaymentStatus());
         }
 
-        payment.assignPaymentKey(request.transactionKey());
         Long usedPoint = getUsedPointForOrder(payment.getOrderId());
         Long pgApproveAmount = payment.getAmount() - usedPoint;
+        String pgOrderId = payment.getPgOrderId();
 
+        // DB 트랜잭션/커넥션 밖에서 실행
         PgApproveResult approveResult = callPg("토스 결제 승인", paymentId,
-                () -> pgClient.approve(new PgApproveCommand(payment.getPaymentKey(), payment.getPgOrderId(), pgApproveAmount)));
+                () -> pgClient.approve(new PgApproveCommand(request.transactionKey(), pgOrderId, pgApproveAmount)));
 
-        // 결제 요청 성공 & 실패 분기
+        return transactionTemplate.execute(status -> applyConfirmResult(
+                paymentId, request.transactionKey(), approveResult, usedPoint
+        ));
+    }
+
+    private ConfirmPaymentResponse applyConfirmResult(Long paymentId, String transactionKey, PgApproveResult approveResult, Long usedPoint) {
+        Payment payment = getPayment(paymentId);
+        payment.assignPaymentKey(transactionKey);
+
         if (approveResult.success()) {
             payment.approve();
             paymentResultEventPublisher.publishConfirmed(new PaymentConfirmEvent(payment.getOrderId(), payment.getId()));
         } else {
             payment.fail();
             rollbackFailedPoint(payment.getOrderId(), usedPoint);
-            paymentResultEventPublisher.publishFailed(
-                    new PaymentFailEvent(payment.getOrderId(), payment.getId(), PaymentErrorCode.PG_REQUEST_FAILED.getMessage())
-            );
+            paymentResultEventPublisher.publishFailed(new PaymentFailEvent(payment.getOrderId(), payment.getId(), PaymentErrorCode.PG_REQUEST_FAILED.getMessage()));
+        }
+
+        try {
+            paymentRepository.save(payment);
+        } catch (ObjectOptimisticLockingFailureException e) {
+            throw new BusinessException(PaymentErrorCode.PAYMENT_CONCURRENT_MODIFICATION);
         }
 
         return ConfirmPaymentResponse.from(payment);
