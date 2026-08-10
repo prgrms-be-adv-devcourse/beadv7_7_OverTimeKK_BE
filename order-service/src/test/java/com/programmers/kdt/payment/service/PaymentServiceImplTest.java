@@ -30,6 +30,8 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.test.util.ReflectionTestUtils;
+import org.springframework.transaction.support.TransactionCallback;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -61,13 +63,15 @@ class PaymentServiceImplTest {
     private PointService pointService;
     @Mock
     private PaymentResultEventPublisher paymentResultEventPublisher;
+    @Mock
+    private TransactionTemplate transactionTemplate;
 
     private PaymentService paymentService;
 
 
     @BeforeEach
     void setUp() {
-        paymentService = new PaymentServiceImpl(paymentRepository, orderRepository, paymentRefundRepository, refundEventPublisher, performanceClient, orderClient, pgClient, pointService, paymentResultEventPublisher);
+        paymentService = new PaymentServiceImpl(paymentRepository, orderRepository, paymentRefundRepository, refundEventPublisher, performanceClient, orderClient, pgClient, pointService, paymentResultEventPublisher, transactionTemplate);
 
     }
 
@@ -111,6 +115,7 @@ class PaymentServiceImplTest {
         @Test
         @DisplayName("이전에 실패한 결제가 있으면 재시도로 처리된다.")
         void successPaymentRetryAfterFailed() {
+
             Order order = mock(Order.class);
             when(order.getTotalAmount()).thenReturn(10000L);
 
@@ -303,6 +308,12 @@ class PaymentServiceImplTest {
         void setUp() {
             payment = Payment.create(1L, 100L, 10000L);
             payment.assignPaymentKey("PG_KEY_123");
+
+            lenient().when(transactionTemplate.execute(any())).thenAnswer(invocation
+                    -> {
+                TransactionCallback<?> callback = invocation.getArgument(0);
+                return callback.doInTransaction(null);
+            });
         }
 
         @Test
@@ -319,6 +330,19 @@ class PaymentServiceImplTest {
             assertThat(payment.getPaymentStatus()).isEqualTo(PaymentStatus.PAID);
             assertThat(payment.getPaymentKey()).isEqualTo("PG_KEY_123");
             assertThat(response).isNotNull();
+        }
+
+        @Test
+        @DisplayName("PG 승인 결과 반영 시 payment를 다시 조회한다.")
+        void confirmRefetchesPaymentBeforeApplyingResult() {
+            when(paymentRepository.findById(1L)).thenReturn(Optional.of(payment));
+            PgApproveResult approveResult = mock(PgApproveResult.class);
+            when(approveResult.success()).thenReturn(true);
+            when(pgClient.approve(any())).thenReturn(approveResult);
+
+            paymentService.confirm(1L, new ConfirmPaymentRequest("PG_KEY_123"));
+
+            verify(paymentRepository, times(2)).findById(1L);
         }
 
         @Test
@@ -369,6 +393,8 @@ class PaymentServiceImplTest {
 
             verifyNoInteractions(pgClient);
             verifyNoInteractions(paymentResultEventPublisher);
+            verifyNoInteractions(transactionTemplate);
+            verify(paymentRepository, never()).save(any());
         }
 
         @Test
@@ -451,6 +477,22 @@ class PaymentServiceImplTest {
             verify(paymentResultEventPublisher).publishConfirmed(captor.capture());
             assertThat(captor.getValue().orderId()).isEqualTo(payment.getOrderId());
             assertThat(captor.getValue().paymentId()).isEqualTo(payment.getId());
+        }
+
+        @Test
+        @DisplayName("결과 반영 중 동시성 충돌이 발생하면 예외가 발생한다.")
+        void confirmConcurrentModification() {
+            when(paymentRepository.findById(1L)).thenReturn(Optional.of(payment));
+            PgApproveResult approveResult = mock(PgApproveResult.class);
+            when(approveResult.success()).thenReturn(true);
+            when(pgClient.approve(any())).thenReturn(approveResult);
+            when(paymentRepository.save(any()))
+                    .thenThrow(new ObjectOptimisticLockingFailureException(Payment.class, 1L));
+
+            assertThatThrownBy(() -> paymentService.confirm(1L, new ConfirmPaymentRequest("PG_KEY_123")))
+                    .isInstanceOf(BusinessException.class)
+                    .extracting(e -> ((BusinessException) e).getErrorCode())
+                    .isEqualTo(PaymentErrorCode.PAYMENT_CONCURRENT_MODIFICATION);
         }
     }
 
