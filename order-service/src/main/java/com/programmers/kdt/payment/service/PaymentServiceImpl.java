@@ -52,7 +52,7 @@ public class PaymentServiceImpl implements PaymentService{
 
     // 결제 생성
     @Transactional
-    public CreatePaymentResponse pay(CreatePaymentRequest request, Long userId) {
+    public CreatePaymentResponse pay(String idempotencyKey, CreatePaymentRequest request, Long userId) {
         Order order = orderRepository.findById(request.orderId())
                 .orElseThrow(() -> new BusinessException(PaymentErrorCode.ORDER_NOT_FOUND));
 
@@ -72,7 +72,7 @@ public class PaymentServiceImpl implements PaymentService{
 
         // 사용 포인트 검증 및 차감 (PG 결제 금액 = 주문 금액 - 사용 포인트)
         Long usedPoint = request.usedPointOrZero();
-        if (usedPoint > request.amount() || usedPoint < 0) {
+        if (usedPoint >= request.amount() || usedPoint < 0) {
             throw new BusinessException(PaymentErrorCode.INVALID_PAYMENT_AMOUNT);
         }
 
@@ -91,7 +91,7 @@ public class PaymentServiceImpl implements PaymentService{
             payment = existing.get();
             payment.retryReady(readyResult.orderId());
         } else {
-            payment = Payment.create(order.getOrderId(), order.getUserId(), request.amount());
+            payment = Payment.create(idempotencyKey, order.getOrderId(), order.getUserId(), request.amount());
             payment.assignPgOrderId(readyResult.orderId());
         }
         paymentRepository.save(payment);
@@ -254,8 +254,6 @@ public class PaymentServiceImpl implements PaymentService{
             );
         }
     }
-
-
 
     // 환불 내역 조회
     @Transactional(readOnly = true)

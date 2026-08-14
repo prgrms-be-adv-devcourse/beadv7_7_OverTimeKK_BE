@@ -13,6 +13,7 @@ public enum PaymentErrorCode implements ErrorCode {
     MISSING_PAYMENT_ID(HttpStatus.BAD_REQUEST, "PAY400_006", "결제 정보가 없습니다."),
     ZERO_REFUND_AMOUNT(HttpStatus.BAD_REQUEST, "PAY400_007", "환불 금액은 0원보다 커야 합니다. 금액: {0}"),
     MISSING_TRANSACTION_KEY(HttpStatus.BAD_REQUEST, "PAY400_008", "결제 승인 키(transactionKey)가 없습니다."),
+    INVALID_IDEMPOTENCY_KEY(HttpStatus.BAD_REQUEST, "PAY400_009", "멱등키가 없습니다."),
 
     PAYMENT_ACCESS_DENIED(HttpStatus.FORBIDDEN, "PAY403_001", "본인 결제 건에 대해서만 접근할 수 있습니다."),
 

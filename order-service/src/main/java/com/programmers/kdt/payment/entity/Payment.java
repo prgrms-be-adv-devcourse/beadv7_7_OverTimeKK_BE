@@ -19,6 +19,10 @@ public class Payment extends BaseTimeEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    // 클라이언트에서 보내는 멱등성 키 (UUID, 300자 이하)
+    @Column(nullable = false, unique = true, length = 300)
+    private String idempotencyKey;
+
     @Column(nullable = false, unique = true)
     private Long orderId;
 
@@ -47,8 +51,10 @@ public class Payment extends BaseTimeEntity {
     private Long version;
 
     //결제 생성 메서드
-    public static Payment create(Long orderId, Long userId, Long amount) {
-
+    public static Payment create(String idempotencyKey, Long orderId, Long userId, Long amount) {
+        if (idempotencyKey == null || idempotencyKey.length() > 300) {
+            throw new BusinessException(PaymentErrorCode.INVALID_IDEMPOTENCY_KEY);
+        }
         if (orderId == null) { // 어떤 예외처리 ?
             throw new BusinessException(PaymentErrorCode.MISSING_ORDER_ID);
         }
@@ -57,6 +63,7 @@ public class Payment extends BaseTimeEntity {
             throw new BusinessException(PaymentErrorCode.ZERO_PAYMENT_AMOUNT, amount);
         }
         Payment payment = new Payment();
+        payment.idempotencyKey = idempotencyKey;
         payment.orderId = orderId;
         payment.userId = userId;
         payment.amount = amount;

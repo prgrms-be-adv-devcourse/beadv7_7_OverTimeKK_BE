@@ -8,7 +8,7 @@ import org.springframework.data.domain.Pageable;
 public interface PaymentService {
 
     // 결제 생성
-    CreatePaymentResponse pay(CreatePaymentRequest request, Long userId);
+    CreatePaymentResponse pay(String idempotencyKey, CreatePaymentRequest request, Long userId);
 
     // 결제 승인
     ConfirmPaymentResponse confirm(Long paymentId, ConfirmPaymentRequest request, Long userId);
