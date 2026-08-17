@@ -1,5 +1,6 @@
 package com.programmers.kdt.payment.service;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.programmers.kdt.common.exception.BusinessException;
 import com.programmers.kdt.order.entity.Order;
 import com.programmers.kdt.order.repository.OrderRepository;
@@ -15,6 +16,7 @@ import com.programmers.kdt.payment.entity.PaymentStatus;
 import com.programmers.kdt.payment.entity.RefundPolicy;
 import com.programmers.kdt.payment.exception.PaymentErrorCode;
 import com.programmers.kdt.payment.exception.PointErrorCode;
+import com.programmers.kdt.payment.repository.IdempotencyKeyRepository;
 import com.programmers.kdt.payment.repository.PaymentRefundRepository;
 import com.programmers.kdt.payment.repository.PaymentRepository;
 import lombok.RequiredArgsConstructor;
@@ -28,6 +30,7 @@ import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
+import tools.jackson.databind.ObjectMapper;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -43,16 +46,44 @@ public class PaymentServiceImpl implements PaymentService{
     private final PaymentRepository paymentRepository;
     private final OrderRepository orderRepository;
     private final PaymentRefundRepository paymentRefundRepository;
+    private final IdempotencyKeyRepository idempotencyKeyRepository;
     private final RefundEventPublisher refundEventPublisher;
     private final PerformanceClient performanceClient;
     private final OrderClient orderClient;
     private final PgClient pgClient;
     private final PointService pointService;
+    private final IdempotencyKeyService idempotencyKeyService;
+    private final ObjectMapper objectMapper;
     private final PaymentResultEventPublisher paymentResultEventPublisher;
 
-    // 결제 생성
+
     @Transactional
     public CreatePaymentResponse pay(String idempotencyKey, CreatePaymentRequest request, Long userId) {
+        Optional<String> cached = idempotencyKeyService.generate(idempotencyKey);
+        if (cached.isPresent()) {
+            return deserialize(cached.get(), CreatePaymentResponse.class);
+        }
+
+        try {
+            CreatePaymentResponse response = dopay(request, userId);
+            idempotencyKeyService.complete(idempotencyKey, toJson(response));
+            return response;
+        } catch (RuntimeException e) {
+            idempotencyKeyRepository.deleteById(idempotencyKey);
+            throw e;
+        }
+    }
+
+    private String toJson(Object value) {
+        return objectMapper.writeValueAsString(value);
+    }
+
+    private <T> T deserialize(String json, Class<T> type) {
+        return objectMapper.readValue(json, type);
+    }
+
+    // 결제 생성
+    private CreatePaymentResponse dopay(CreatePaymentRequest request, Long userId) {
         Order order = orderRepository.findById(request.orderId())
                 .orElseThrow(() -> new BusinessException(PaymentErrorCode.ORDER_NOT_FOUND));
 
@@ -91,7 +122,7 @@ public class PaymentServiceImpl implements PaymentService{
             payment = existing.get();
             payment.retryReady(readyResult.orderId());
         } else {
-            payment = Payment.create(idempotencyKey, order.getOrderId(), order.getUserId(), request.amount());
+            payment = Payment.create(order.getOrderId(), order.getUserId(), request.amount());
             payment.assignPgOrderId(readyResult.orderId());
         }
         paymentRepository.save(payment);
