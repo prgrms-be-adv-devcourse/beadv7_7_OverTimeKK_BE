@@ -197,6 +197,12 @@ public class PaymentServiceImpl implements PaymentService{
         boolean alreadyFailed = payment.getPaymentStatus() == PaymentStatus.FAILED;
         payment.fail();
 
+        try {
+            paymentRepository.saveAndFlush(payment); // PG 요청전, 이중 호출 방지
+        } catch (ObjectOptimisticLockingFailureException e) {
+            throw new BusinessException(PaymentErrorCode.PAYMENT_CONCURRENT_MODIFICATION);
+        }
+
         if (!alreadyFailed) {
             if (payment.getPaymentKey() != null) {
                 callPg("토스 결제 취소", paymentId,
@@ -331,28 +337,28 @@ public class PaymentServiceImpl implements PaymentService{
     private Payment getPayment(Long paymentId) {
         return paymentRepository.findById(paymentId)
                 .orElseThrow(() -> new BusinessException(PaymentErrorCode.PAYMENT_NOT_FOUND));
-    }
+        }
 
-    private Long getUsedPointForOrder(Long orderId) {
-        return resolveUsedPoint(pointUseEventId(orderId));
-    }
+        private Long getUsedPointForOrder(Long orderId) {
+            return resolveUsedPoint(pointUseEventId(orderId));
+        }
 
-    private String pointUseEventId(Long orderId) {
-        return "ORDER:" + orderId + ":POINT_USE";
-    }
+        private String pointUseEventId(Long orderId) {
+            return "ORDER:" + orderId + ":POINT_USE";
+        }
 
-    private String pointRollbackFailEventId(Long orderId) {
-        return "ORDER:" + orderId + ":POINT_ROLLBACK_FAIL";
-    }
+        private String pointRollbackFailEventId(Long orderId) {
+            return "ORDER:" + orderId + ":POINT_ROLLBACK_FAIL";
+        }
 
-    private String pointRollbackRefundEventId(Long orderId) {
-        return "ORDER:" + orderId + ":POINT_ROLLBACK_REFUND";
-    }
+        private String pointRollbackRefundEventId(Long orderId) {
+            return "ORDER:" + orderId + ":POINT_ROLLBACK_REFUND";
+        }
 
-    private void rollbackFailedPoint(Long orderId, Long usedPoint) {
-        if (usedPoint > 0) {
-            pointService.rollbackPoint(pointUseEventId(orderId), usedPoint,
-                    pointRollbackFailEventId(orderId), true);
+        private void rollbackFailedPoint(Long orderId, Long usedPoint) {
+            if (usedPoint > 0) {
+                pointService.rollbackPoint(pointUseEventId(orderId), usedPoint,
+                        pointRollbackFailEventId(orderId), true);
         }
     }
 
