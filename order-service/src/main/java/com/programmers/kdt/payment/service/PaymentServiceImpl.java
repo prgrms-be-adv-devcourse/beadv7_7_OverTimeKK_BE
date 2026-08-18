@@ -161,6 +161,12 @@ public class PaymentServiceImpl implements PaymentService{
         }
 
         payment.assignPaymentKey(request.transactionKey());
+        try {
+            paymentRepository.saveAndFlush(payment);
+        } catch (ObjectOptimisticLockingFailureException e) {
+            throw new BusinessException(PaymentErrorCode.PAYMENT_CONCURRENT_MODIFICATION);
+        }
+
         Long usedPoint = getUsedPointForOrder(payment.getOrderId());
         Long pgApproveAmount = payment.getAmount() - usedPoint;
 
