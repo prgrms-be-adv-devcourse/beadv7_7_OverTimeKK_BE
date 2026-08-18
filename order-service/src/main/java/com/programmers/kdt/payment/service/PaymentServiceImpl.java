@@ -59,17 +59,18 @@ public class PaymentServiceImpl implements PaymentService{
 
     @Transactional
     public CreatePaymentResponse pay(String idempotencyKey, CreatePaymentRequest request, Long userId) {
-        Optional<String> cached = idempotencyKeyService.generate(idempotencyKey);
+        String key = "PAY:" + idempotencyKey;
+        Optional<String> cached = idempotencyKeyService.generate(key);
         if (cached.isPresent()) {
             return deserialize(cached.get(), CreatePaymentResponse.class);
         }
 
         try {
             CreatePaymentResponse response = doPay(request, userId);
-            idempotencyKeyService.complete(idempotencyKey, toJson(response));
+            idempotencyKeyService.complete(key, toJson(response));
             return response;
         } catch (RuntimeException e) {
-            idempotencyKeyRepository.deleteById(idempotencyKey);
+            idempotencyKeyRepository.deleteById(key);
             throw e;
         }
     }
