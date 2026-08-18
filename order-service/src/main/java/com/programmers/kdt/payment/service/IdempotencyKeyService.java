@@ -1,7 +1,5 @@
 package com.programmers.kdt.payment.service;
 
-import com.programmers.kdt.payment.entity.key.IdempotencyKey;
-
 import java.util.Optional;
 
 public interface IdempotencyKeyService {
@@ -9,5 +7,6 @@ public interface IdempotencyKeyService {
 
     void complete(String idempotencyKey, String responseBody);
 
+    void release(String idempotencyKey);
 
 }

@@ -37,4 +37,8 @@ public class IdempotencyKeyTxOps {
                 IdempotencyKey.generate(idempotencyKey, LocalDateTime.now().plus(TTL)));
     }
 
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void delete(String idempotencyKey) {
+        idempotencyKeyRepository.deleteById(idempotencyKey);
+    }
 }

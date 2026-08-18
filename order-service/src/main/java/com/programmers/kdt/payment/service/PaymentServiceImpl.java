@@ -1,6 +1,5 @@
 package com.programmers.kdt.payment.service;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.programmers.kdt.common.exception.BusinessException;
 import com.programmers.kdt.order.entity.Order;
 import com.programmers.kdt.order.repository.OrderRepository;
@@ -16,7 +15,6 @@ import com.programmers.kdt.payment.entity.PaymentStatus;
 import com.programmers.kdt.payment.entity.RefundPolicy;
 import com.programmers.kdt.payment.exception.PaymentErrorCode;
 import com.programmers.kdt.payment.exception.PointErrorCode;
-import com.programmers.kdt.payment.repository.IdempotencyKeyRepository;
 import com.programmers.kdt.payment.repository.PaymentRefundRepository;
 import com.programmers.kdt.payment.repository.PaymentRepository;
 import lombok.RequiredArgsConstructor;
@@ -46,7 +44,6 @@ public class PaymentServiceImpl implements PaymentService{
     private final PaymentRepository paymentRepository;
     private final OrderRepository orderRepository;
     private final PaymentRefundRepository paymentRefundRepository;
-    private final IdempotencyKeyRepository idempotencyKeyRepository;
     private final RefundEventPublisher refundEventPublisher;
     private final PerformanceClient performanceClient;
     private final OrderClient orderClient;
@@ -70,7 +67,7 @@ public class PaymentServiceImpl implements PaymentService{
             idempotencyKeyService.complete(key, toJson(response));
             return response;
         } catch (RuntimeException e) {
-            idempotencyKeyRepository.deleteById(key);
+            idempotencyKeyService.release(key);
             throw e;
         }
     }
@@ -144,7 +141,7 @@ public class PaymentServiceImpl implements PaymentService{
             idempotencyKeyService.complete(key, toJson(response));
             return response;
         } catch (RuntimeException e) {
-            idempotencyKeyRepository.deleteById(key);
+            idempotencyKeyService.release(key);
             throw e;
         }
     }

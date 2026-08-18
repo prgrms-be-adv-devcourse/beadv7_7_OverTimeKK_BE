@@ -8,7 +8,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Optional;
@@ -43,7 +42,7 @@ public class IdempotencyKeyServiceImpl implements IdempotencyKeyService {
     }
 
     @Override
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    @Transactional
     public void complete(String idempotencyKey, String responseBody) {
         int updated = idempotencyKeyRepository.findById(idempotencyKey)
                 .map(key -> { key.complete(responseBody); return 1; })
@@ -51,4 +50,8 @@ public class IdempotencyKeyServiceImpl implements IdempotencyKeyService {
         log.info("[IDEMPOTENCY_COMPLETE] key={}, found={}, bodyLen={}", idempotencyKey, updated, responseBody == null ? -1 : responseBody.length());
     }
 
+    @Override
+    public void release(String idempotencyKey) {
+        txOps.delete(idempotencyKey);
+    }
 }
