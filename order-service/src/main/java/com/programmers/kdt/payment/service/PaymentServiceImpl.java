@@ -131,9 +131,26 @@ public class PaymentServiceImpl implements PaymentService{
         return CreatePaymentResponse.of(payment, readyResult);
     }
 
-    // 결제 확인
     @Transactional
-    public ConfirmPaymentResponse confirm(Long paymentId, ConfirmPaymentRequest request, Long userId) {
+    public ConfirmPaymentResponse confirm(Long paymentId, ConfirmPaymentRequest request, String idempotencyKey, Long userId) {
+        String key = "CONFIRM:" + idempotencyKey;
+        Optional<String> cached = idempotencyKeyService.generate(key);
+        if (cached.isPresent()) {
+            return deserialize(cached.get(), ConfirmPaymentResponse.class);
+        }
+
+        try {
+            ConfirmPaymentResponse response = doConfirm(paymentId, request, userId);
+            idempotencyKeyService.complete(key, toJson(response));
+            return response;
+        } catch (RuntimeException e) {
+            idempotencyKeyRepository.deleteById(key);
+            throw e;
+        }
+    }
+
+    // 결제 확인
+    private ConfirmPaymentResponse doConfirm(Long paymentId, ConfirmPaymentRequest request, Long userId) {
         Payment payment = getPayment(paymentId);
 
         if (!payment.getUserId().equals(userId)) throw new BusinessException(PaymentErrorCode.PAYMENT_ACCESS_DENIED);

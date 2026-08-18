@@ -36,9 +36,10 @@ public class PaymentController {
     public ApiResponse<ConfirmPaymentResponse> confirm(
             @PathVariable Long paymentId,
             @Valid @RequestBody ConfirmPaymentRequest request,
+            @RequestHeader(name = "Idempotency-Key") final String idempotencyKey,
             @RequestHeader("X-User-Id") Long userId
     ) {
-        ConfirmPaymentResponse response = paymentService.confirm(paymentId, request, userId);
+        ConfirmPaymentResponse response = paymentService.confirm(paymentId, request, idempotencyKey, userId);
         return ApiResponse.success(response);
     }
 

@@ -11,7 +11,7 @@ public interface PaymentService {
     CreatePaymentResponse pay(String idempotencyKey, CreatePaymentRequest request, Long userId);
 
     // 결제 승인
-    ConfirmPaymentResponse confirm(Long paymentId, ConfirmPaymentRequest request, Long userId);
+    ConfirmPaymentResponse confirm(Long paymentId, ConfirmPaymentRequest request, String idempotencyKey, Long userId);
 
     // 결제 실패
     FailPaymentResponse fail(Long paymentId, FailPaymentRequest request, Long userId);
