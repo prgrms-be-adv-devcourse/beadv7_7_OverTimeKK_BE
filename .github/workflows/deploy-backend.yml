@@ -20,6 +20,8 @@ jobs:
             port: 8083
           - service: user-service
             port: 8081
+          - service: gateway-service
+            port: 8080
     steps:
       - uses: actions/checkout@v4
 
