@@ -65,7 +65,7 @@ public class PaymentServiceImpl implements PaymentService{
         }
 
         try {
-            CreatePaymentResponse response = dopay(request, userId);
+            CreatePaymentResponse response = doPay(request, userId);
             idempotencyKeyService.complete(idempotencyKey, toJson(response));
             return response;
         } catch (RuntimeException e) {
@@ -83,7 +83,7 @@ public class PaymentServiceImpl implements PaymentService{
     }
 
     // 결제 생성
-    private CreatePaymentResponse dopay(CreatePaymentRequest request, Long userId) {
+    private CreatePaymentResponse doPay(CreatePaymentRequest request, Long userId) {
         Order order = orderRepository.findById(request.orderId())
                 .orElseThrow(() -> new BusinessException(PaymentErrorCode.ORDER_NOT_FOUND));
 
