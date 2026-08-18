@@ -666,6 +666,10 @@ class StandbyServiceTest {
 
             // then
             assertThat(responses).isEmpty();
+        }
+    }
+
+    @Nested
     @DisplayName("결제 기한 만료에 대한 테스트")
     class ExpireHeldStandbys {
 
