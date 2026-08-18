@@ -116,6 +116,7 @@ services:
       USER_SERVICE_URL: http://user-service:8081
       ORDER_SERVICE_URL: http://order-service:8082
       PERFORMANCE_SERVICE_URL: http://performance-service:8083
+      JWT_SECRET: ${JWT_SECRET}
     restart: unless-stopped
     networks:
       - reseat-net
