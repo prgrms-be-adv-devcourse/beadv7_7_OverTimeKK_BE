@@ -15,7 +15,7 @@ import java.util.Optional;
 @RequiredArgsConstructor
 public class IdempotencyKeyTxOps {
 
-    private static final Duration TTL = Duration.ofDays(1);
+    private static final Duration TTL = Duration.ofMinutes(5);
     private final IdempotencyKeyRepository idempotencyKeyRepository;
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
