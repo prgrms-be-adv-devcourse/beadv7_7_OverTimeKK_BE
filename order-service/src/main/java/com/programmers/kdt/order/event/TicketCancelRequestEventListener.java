@@ -3,12 +3,12 @@ package com.programmers.kdt.order.event;
 import com.programmers.kdt.common.exception.BusinessException;
 import com.programmers.kdt.order.client.TicketClient;
 import com.programmers.kdt.order.dto.TicketCancelRequest;
+import com.programmers.kdt.order.exception.OrderErrorCode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
-import org.springframework.web.client.RestClientException;
 
 @Slf4j
 @Component
@@ -25,7 +25,15 @@ public class TicketCancelRequestEventListener {
             try {
                 ticketClient.cancelTicket(new TicketCancelRequest(event.ticketId(), event.userId()));
                 return;
-            } catch (BusinessException | RestClientException e) {
+            } catch (BusinessException e) {
+                if(!OrderErrorCode.TICKET_RELEASE_FAILED.equals(e.getErrorCode())){
+                    log.error(
+                            "티켓 취소 요청 실패(재시도 대상 아님) : orderId={}, ticketId={}, code={}",
+                            event.orderId(), event.ticketId(), e.getErrorCode()
+                    );
+                    return;
+                }
+
                 log.warn(
                         "[티켓 취소 재시도] orderId={} ticketId={} attempt={}/{}",
                         event.orderId(), event.ticketId(), attempt, maxAttempt

@@ -77,6 +77,19 @@ class TicketCancelRequestEventListenerTest {
         verify(ticketClient, times(3)).cancelTicket(any());
     }
 
+    @Test
+    @DisplayName("TICKET_NOT_FOUND는 재시도하지 않고 cancelTicket을 1번만 호출한다")
+    void ticketNotFoundIsNotRetried() {
+        doThrow(new BusinessException(OrderErrorCode.TICKET_NOT_FOUND))
+                .when(ticketClient).cancelTicket(any());
+
+        assertDoesNotThrow(() ->
+                listener.handle(new TicketCancelRequestEvent(10L, 900001L, 1L))
+        );
+
+        verify(ticketClient, times(1)).cancelTicket(any());
+    }
+
     private static BusinessException ticketReleaseFailed() {
         return new BusinessException(OrderErrorCode.TICKET_RELEASE_FAILED);
     }
