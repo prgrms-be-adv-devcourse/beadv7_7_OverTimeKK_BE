@@ -7,7 +7,7 @@ import java.util.List;
 public interface OrderService {
 
     // 주문 요청
-    CreateOrderResponse createOrder(CreateOrderRequest request);
+    CreateOrderResponse createOrder(CreateOrderRequest request, Long userId);
 
     // 주문 완료
     void completeOrder(Long orderId);
@@ -19,12 +19,12 @@ public interface OrderService {
     void startPayment(Long orderId);
 
     // 주문 취소
-    CancelOrderResponse cancelCompletedOrder(Long orderId, CancelOrderRequest request);
+    CancelOrderResponse cancelCompletedOrder(Long orderId, Long userId, CancelOrderRequest request);
 
     // 주문 내역 조회
     List<GetOrderHistoryResponse> getOrderHistory(Long userId);
 
-    CancelOrderResponse cancelPendingOrder(Long orderId);
+    CancelOrderResponse cancelPendingOrder(Long orderId, Long userId);
 
     // 환불 성공 시 주문 취소 확정
     void confirmCancellation(Long orderId);
