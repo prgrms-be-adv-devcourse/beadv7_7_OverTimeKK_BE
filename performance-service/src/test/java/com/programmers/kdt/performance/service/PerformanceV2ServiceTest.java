@@ -8,6 +8,8 @@ import com.programmers.kdt.performance.entity.Performance;
 import com.programmers.kdt.performance.repository.PerformanceRepository;
 import com.programmers.kdt.performance.repository.PerformanceSeatPriceRepository;
 import com.programmers.kdt.performance.repository.PerformanceSessionRepository;
+import com.programmers.kdt.ticket.entity.TicketStatus;
+import com.programmers.kdt.ticket.repository.TicketRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -31,6 +33,7 @@ class PerformanceV2ServiceTest {
     @Mock private PerformanceSeatPriceRepository seatPriceRepository;
     @Mock private PerformanceRepository performanceRepository;
     @Mock private PerformanceSessionRepository performanceSessionRepository;
+    @Mock private TicketRepository ticketRepository;
 
     @InjectMocks private PerformanceV2Service performanceService;
 
@@ -65,7 +68,7 @@ class PerformanceV2ServiceTest {
                 LocalDate.of(2026, 9, 30),
                 LocalDateTime.of(2026, 8, 1, 10, 0, 0),
                 1L
-        );
+        , null);
 
         RegisterPerformanceRequest request = new RegisterPerformanceRequest(
                 1L
@@ -77,6 +80,7 @@ class PerformanceV2ServiceTest {
         Performance savedPerformance = request.toPerformance();
         ReflectionTestUtils.setField(savedPerformance, "performanceId", 1L);
         when(performanceRepository.save(any(Performance.class))).thenReturn(savedPerformance);
+        when(ticketRepository.issueTicket(any(Long.class), any(TicketStatus.class))).thenReturn(200);
 
         // when
         performanceService.registerPerformanceInformation(request);
