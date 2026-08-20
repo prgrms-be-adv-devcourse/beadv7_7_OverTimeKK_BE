@@ -73,7 +73,8 @@ class PaymentServiceImplTest {
     @BeforeEach
     void setUp() {
         paymentService = new PaymentServiceImpl(paymentRepository, orderRepository, paymentRefundRepository, refundEventPublisher, performanceClient, orderClient, pgClient, pointService, idempotencyKeyService, objectMapper, paymentResultEventPublisher);
-        lenient().when(idempotencyKeyService.generate(any(String.class))).thenReturn(Optional.empty());
+        lenient().when(idempotencyKeyService.generate(any(String.class), any(String.class))).thenReturn(Optional.empty());
+        lenient().when(objectMapper.writeValueAsString(any())).thenReturn("{}");
     }
 
     @Nested

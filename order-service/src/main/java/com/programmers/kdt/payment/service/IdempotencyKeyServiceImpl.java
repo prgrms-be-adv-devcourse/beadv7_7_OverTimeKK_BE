@@ -21,22 +21,27 @@ public class IdempotencyKeyServiceImpl implements IdempotencyKeyService {
     private final IdempotencyKeyTxOps txOps;
 
     @Override
-    public Optional<String> generate(String idempotencyKey) {
+    public Optional<String> generate(String idempotencyKey, String requestHash) {
         try {
-            txOps.tryInsert(idempotencyKey);
+            txOps.tryInsert(idempotencyKey, requestHash);
             return Optional.empty();
         } catch (DataIntegrityViolationException e) { // 이미 있는 멱등키를 다시 저장하려고 하는 경우
             IdempotencyKey existing = txOps.findFresh(idempotencyKey)
                     .orElseThrow(() -> e);
 
             if (existing.isExpired()) {
-                txOps.expireAndReinsert(idempotencyKey, existing);
+                txOps.expireAndReinsert(idempotencyKey, existing, requestHash);
                 return Optional.empty();
+            }
+
+            if (!existing.getRequestHash().equals(requestHash)) {
+                throw new BusinessException(PaymentErrorCode.IDEMPOTENCY_KEY_CONFLICT);
             }
 
             if (existing.getResponseBody() == null) {
                 throw new BusinessException(PaymentErrorCode.PAYMENT_ALREADY_EXISTS);
             }
+
             return Optional.of(existing.getResponseBody());
         }
     }

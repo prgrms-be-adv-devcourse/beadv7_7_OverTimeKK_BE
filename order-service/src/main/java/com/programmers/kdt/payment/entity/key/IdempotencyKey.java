@@ -23,6 +23,9 @@ public class IdempotencyKey implements Persistable<String> {
     @Column(nullable = false, length = 300)
     private String idempotencyKey;
 
+    @Column(nullable = false)
+    private String requestHash;
+
     @Lob
     private String responseBody;
 
@@ -36,9 +39,10 @@ public class IdempotencyKey implements Persistable<String> {
     @Transient
     private boolean isNew = true;
 
-    public static IdempotencyKey generate(String idempotencyKey, LocalDateTime expiresAt) {
+    public static IdempotencyKey generate(String idempotencyKey, String requestHash, LocalDateTime expiresAt) {
         IdempotencyKey key = new IdempotencyKey();
         key.idempotencyKey = idempotencyKey;
+        key.requestHash = requestHash;
         key.expiresAt = expiresAt;
         return key;
     }

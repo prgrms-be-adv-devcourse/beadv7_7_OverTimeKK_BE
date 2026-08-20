@@ -19,9 +19,9 @@ public class IdempotencyKeyTxOps {
     private final IdempotencyKeyRepository idempotencyKeyRepository;
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public void tryInsert(String idempotencyKey) {
+    public void tryInsert(String idempotencyKey, String requestHash) {
         idempotencyKeyRepository.saveAndFlush(IdempotencyKey
-                .generate(idempotencyKey, LocalDateTime.now().plus(TTL)));
+                .generate(idempotencyKey, requestHash, LocalDateTime.now().plus(TTL)));
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
@@ -30,11 +30,11 @@ public class IdempotencyKeyTxOps {
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public void expireAndReinsert(String idempotencyKey, IdempotencyKey existing) {
+    public void expireAndReinsert(String idempotencyKey, IdempotencyKey existing, String requestHash) {
         idempotencyKeyRepository.delete(existing);
         idempotencyKeyRepository.flush();
         idempotencyKeyRepository.saveAndFlush(
-                IdempotencyKey.generate(idempotencyKey, LocalDateTime.now().plus(TTL)));
+                IdempotencyKey.generate(idempotencyKey, requestHash, LocalDateTime.now().plus(TTL)));
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)

@@ -30,8 +30,12 @@ import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
 import tools.jackson.databind.ObjectMapper;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.HexFormat;
 import java.util.Optional;
 import java.util.function.Supplier;
 
@@ -57,7 +61,8 @@ public class PaymentServiceImpl implements PaymentService{
     @Transactional
     public CreatePaymentResponse pay(String idempotencyKey, CreatePaymentRequest request, Long userId) {
         String key = "PAY:" + idempotencyKey;
-        Optional<String> cached = idempotencyKeyService.generate(key);
+        String requestHash = hashRequest(request);
+        Optional<String> cached = idempotencyKeyService.generate(key, requestHash);
         if (cached.isPresent()) {
             return deserialize(cached.get(), CreatePaymentResponse.class);
         }
@@ -78,6 +83,16 @@ public class PaymentServiceImpl implements PaymentService{
 
     private <T> T deserialize(String json, Class<T> type) {
         return objectMapper.readValue(json, type);
+    }
+
+    private String hashRequest(Object request) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] hash = digest.digest(toJson(request).getBytes(StandardCharsets.UTF_8));
+            return HexFormat.of().formatHex(hash);
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException(e);
+        }
     }
 
     // 결제 생성
@@ -131,7 +146,8 @@ public class PaymentServiceImpl implements PaymentService{
     @Transactional
     public ConfirmPaymentResponse confirm(Long paymentId, ConfirmPaymentRequest request, String idempotencyKey, Long userId) {
         String key = "CONFIRM:" + idempotencyKey;
-        Optional<String> cached = idempotencyKeyService.generate(key);
+        String requestHash = hashRequest(request);
+        Optional<String> cached = idempotencyKeyService.generate(key, requestHash);
         if (cached.isPresent()) {
             return deserialize(cached.get(), ConfirmPaymentResponse.class);
         }
