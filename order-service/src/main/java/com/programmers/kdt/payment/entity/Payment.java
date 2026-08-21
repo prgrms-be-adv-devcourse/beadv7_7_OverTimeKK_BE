@@ -75,6 +75,16 @@ public class Payment extends BaseTimeEntity {
         this.paymentStatus = PaymentStatus.PAID;
     }
 
+    public void markPending() {
+        if (paymentStatus == PaymentStatus.PAID) {
+            return;
+        }
+        if (!isReady()) {
+            throw new BusinessException(PaymentErrorCode.INVALID_PAYMENT_STATUS, this.paymentStatus);
+        }
+        this.paymentStatus = PaymentStatus.CONFIRM_PENDING_VERIFICATION;
+    }
+
     // PG사 키 등록
     public void assignPaymentKey(String paymentKey) {
         if (paymentKey == null || paymentKey.isBlank()) {

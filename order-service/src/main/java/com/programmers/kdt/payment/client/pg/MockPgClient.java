@@ -28,4 +28,9 @@ public class MockPgClient implements PgClient {
     public PgCancelResult cancel(PgCancelCommand command) {
         return new PgCancelResult(true, LocalDateTime.now());
     }
+
+    @Override
+    public PgApproveResult select(String paymentKey) {
+        return new PgApproveResult(true, LocalDateTime.now());
+    }
 }
