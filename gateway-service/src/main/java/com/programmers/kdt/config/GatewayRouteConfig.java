@@ -40,6 +40,7 @@ public class GatewayRouteConfig {
                 .or(path("/api/settlements/**"));
 
         RequestPredicate performanceServicePaths = path("/api/performances/**")
+                .or(path("/api/performance/**"))
                 .or(path("/api/venues/**"))
                 .or(path("/api/halls/**"))
                 .or(path("/api/tickets/**"))
