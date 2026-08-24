@@ -1,4 +1,4 @@
-﻿package com.programmers.kdt.payment.service.tx;
+package com.programmers.kdt.payment.service.tx;
 
 import com.programmers.kdt.common.exception.BusinessException;
 import com.programmers.kdt.payment.entity.Payment;
@@ -54,7 +54,24 @@ public class PaymentTxOps {
         return payment;
     }
 
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public Payment applyReconcileResult(Long paymentId, PgOutcome pgOutcome) {
+        Payment payment = paymentRepository.findById(paymentId)
+                .orElseThrow(() -> new BusinessException(PaymentErrorCode.PAYMENT_NOT_FOUND));
+        switch (pgOutcome) {
+            case SUCCESS -> payment.confirmVerifiedSuccess();
+            case EXPLICIT_FAIL -> payment.confirmVerifiedFail();
+            case AMBIGUOUS -> {return payment;}
+        }
 
+        try {
+            paymentRepository.saveAndFlush(payment);
+        } catch (ObjectOptimisticLockingFailureException e) {
+            throw new BusinessException(PaymentErrorCode.PAYMENT_CONCURRENT_MODIFICATION);
+        }
+
+        return payment;
+    }
 }
 
 

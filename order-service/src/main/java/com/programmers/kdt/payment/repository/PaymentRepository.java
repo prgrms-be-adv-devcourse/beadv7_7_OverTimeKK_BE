@@ -1,6 +1,7 @@
 package com.programmers.kdt.payment.repository;
 
 import com.programmers.kdt.payment.entity.Payment;
+import com.programmers.kdt.payment.entity.PaymentStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -14,4 +15,6 @@ public interface PaymentRepository extends JpaRepository<Payment, Long> {
     boolean existsByOrderId(Long orderId);
 
     Optional<Payment> findByOrderId(Long orderId);
+
+    Page<Payment> findByPaymentStatus(PaymentStatus paymentStatus, Pageable pageable);
 }

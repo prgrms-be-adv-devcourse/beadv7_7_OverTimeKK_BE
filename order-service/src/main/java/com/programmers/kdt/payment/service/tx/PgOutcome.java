@@ -1,4 +1,4 @@
-﻿package com.programmers.kdt.payment.service.tx;
+package com.programmers.kdt.payment.service.tx;
 
 public enum PgOutcome {
     SUCCESS, // 성공

@@ -19,6 +19,7 @@ import com.programmers.kdt.payment.repository.PaymentRefundRepository;
 import com.programmers.kdt.payment.repository.PaymentRepository;
 import com.programmers.kdt.payment.service.tx.PaymentTxOps;
 import com.programmers.kdt.payment.service.tx.PgOutcome;
+import com.programmers.kdt.payment.service.util.PointEventIds;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -128,7 +129,7 @@ public class PaymentServiceImpl implements PaymentService{
         Long pgAmount = request.amount() - usedPoint;
 
         if (usedPoint > 0) {
-            pointService.usePoint(order.getUserId(), usedPoint, pointUseEventId(request.orderId()));
+            pointService.usePoint(order.getUserId(), usedPoint, PointEventIds.useEventId(request.orderId()));
         }
 
         PgReadyResult readyResult = callPg("토스 결제 준비", request.orderId(),
@@ -146,7 +147,6 @@ public class PaymentServiceImpl implements PaymentService{
         return CreatePaymentResponse.of(payment, readyResult);
     }
 
-    @Transactional
     public ConfirmPaymentResponse confirm(Long paymentId, ConfirmPaymentRequest request, String idempotencyKey, Long userId) {
         String key = "CONFIRM:" + idempotencyKey;
         String requestHash = hashRequest(request);
@@ -177,6 +177,7 @@ public class PaymentServiceImpl implements PaymentService{
         PgOutcome outcome;
         PgApproveResult approveResult = null;
 
+        // PG
         try {
             approveResult = pgClient.approve(new PgApproveCommand(payment.getPaymentKey(), payment.getPgOrderId(), pgApproveAmount));
             outcome = approveResult.success() ? PgOutcome.SUCCESS : PgOutcome.EXPLICIT_FAIL;
@@ -188,7 +189,7 @@ public class PaymentServiceImpl implements PaymentService{
             outcome = PgOutcome.AMBIGUOUS;
         }
 
-        payment = paymentTxOps.applyConfirmResult(paymentId, outcome);
+        payment = paymentTxOps.applyConfirmResult(paymentId, outcome); // tx2
 
         switch (outcome) {
             case SUCCESS ->
@@ -197,7 +198,7 @@ public class PaymentServiceImpl implements PaymentService{
                 rollbackFailedPoint(payment.getOrderId(), usedPoint);
                 paymentResultEventPublisher.publishFailed(new PaymentFailEvent(payment.getOrderId(), payment.getId(), PaymentErrorCode.PG_REQUEST_FAILED.getMessage()));
             }
-            case AMBIGUOUS -> {}
+            case AMBIGUOUS -> {paymentTxOps.applyReconcileResult(payment.getId(), outcome);}
         }
         return ConfirmPaymentResponse.from(payment);
     }
@@ -360,25 +361,13 @@ public class PaymentServiceImpl implements PaymentService{
         }
 
         private Long getUsedPointForOrder(Long orderId) {
-            return resolveUsedPoint(pointUseEventId(orderId));
+            return resolveUsedPoint(PointEventIds.useEventId(orderId));
         }
 
-        private String pointUseEventId(Long orderId) {
-            return "ORDER:" + orderId + ":POINT_USE";
-        }
-
-        private String pointRollbackFailEventId(Long orderId) {
-            return "ORDER:" + orderId + ":POINT_ROLLBACK_FAIL";
-        }
-
-        private String pointRollbackRefundEventId(Long orderId) {
-            return "ORDER:" + orderId + ":POINT_ROLLBACK_REFUND";
-        }
 
         private void rollbackFailedPoint(Long orderId, Long usedPoint) {
             if (usedPoint > 0) {
-                pointService.rollbackPoint(pointUseEventId(orderId), usedPoint,
-                        pointRollbackFailEventId(orderId), true);
+                pointService.rollbackPoint(PointEventIds.useEventId(orderId), usedPoint, PointEventIds.rollbackFailEventId(orderId), true);
         }
     }
 
@@ -390,8 +379,8 @@ public class PaymentServiceImpl implements PaymentService{
         }
 
         boolean isFullRollback = refundedPoint.equals(usedPoint);
-        String originEventId = pointUseEventId(orderId);
-        String rollbackEventId = pointRollbackRefundEventId(orderId);
+        String originEventId = PointEventIds.useEventId(orderId);
+        String rollbackEventId = PointEventIds.rollbackEventId(orderId);
 
         int maxAttempts = 3; // 최대 재시도 횟수
         for (int attempt = 1; attempt <= maxAttempts; attempt++) {
