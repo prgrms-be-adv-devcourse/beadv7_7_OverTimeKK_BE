@@ -60,7 +60,7 @@ class PaymentReconciliationSchedulerTest {
     }
 
     private void stubPending(Payment... payments) {
-        when(paymentRepository.findByPaymentStatus(eq(PaymentStatus.CONFIRM_PENDING_VERIFICATION), any()))
+        when(paymentRepository.findByPaymentStatusAndModifiedAtBefore(eq(PaymentStatus.CONFIRM_PENDING_VERIFICATION), any(), any()))
                 .thenReturn(new PageImpl<>(List.of(payments)));
     }
 

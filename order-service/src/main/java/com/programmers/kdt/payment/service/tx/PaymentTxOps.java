@@ -27,6 +27,7 @@ public class PaymentTxOps {
         }
 
         payment.assignPaymentKey(transactionKey);
+        payment.markPending();
         try {
             paymentRepository.saveAndFlush(payment);
         } catch (ObjectOptimisticLockingFailureException e) {
@@ -40,9 +41,9 @@ public class PaymentTxOps {
         Payment payment = paymentRepository.findById(paymentId)
                 .orElseThrow(() -> new BusinessException(PaymentErrorCode.PAYMENT_NOT_FOUND));
         switch (pgOutcome) {
-            case SUCCESS -> payment.approve();
-            case EXPLICIT_FAIL -> payment.fail();
-            case AMBIGUOUS -> payment.markPending();
+            case SUCCESS -> payment.confirmVerifiedSuccess();
+            case EXPLICIT_FAIL -> payment.confirmVerifiedFail();
+            case AMBIGUOUS -> {}
         }
 
         try {

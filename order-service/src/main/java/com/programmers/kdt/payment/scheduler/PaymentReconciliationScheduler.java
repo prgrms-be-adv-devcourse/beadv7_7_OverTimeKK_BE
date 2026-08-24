@@ -36,6 +36,7 @@ public class PaymentReconciliationScheduler {
     private static final int BATCH_SIZE = 50;
     private static final int MAX_POINT_ROLLBACK_ATTEMPTS = 3;
     private static final Duration GIVE_UP_THRESHOLD = Duration.ofMinutes(10);
+    private static final Duration MIN_PENDING_AGE = Duration.ofSeconds(40);
 
     private final PaymentRepository paymentRepository;
     private final PgClient pgClient;
@@ -45,8 +46,10 @@ public class PaymentReconciliationScheduler {
 
     @Scheduled(fixedDelay = 60000)
     public void reconcilePayments() {
-        Page<Payment> payments = paymentRepository.findByPaymentStatus(
+        LocalDateTime cutoffTime = LocalDateTime.now().minus(MIN_PENDING_AGE);
+        Page<Payment> payments = paymentRepository.findByPaymentStatusAndModifiedAtBefore(
                 PaymentStatus.CONFIRM_PENDING_VERIFICATION,
+                cutoffTime,
                 PageRequest.of(0, BATCH_SIZE, Sort.by("modifiedAt").ascending())
         );
         if (payments.isEmpty()) return;

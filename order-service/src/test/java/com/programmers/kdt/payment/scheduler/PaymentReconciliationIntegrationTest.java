@@ -20,7 +20,7 @@ import org.springframework.web.client.RestClientException;
 
 import java.time.LocalDateTime;
 
-import static org.assertj.core.api.Assertions.*;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 
@@ -52,6 +52,10 @@ public class PaymentReconciliationIntegrationTest {
         payment.assignPaymentKey(paymentKey);
         payment.markPending();
         paymentRepository.saveAndFlush(payment);
+        em.createQuery("update Payment p set p.modifiedAt = :t where p.id = :id")
+                .setParameter("t", LocalDateTime.now().minusMinutes(1))
+                .setParameter("id", payment.getId())
+                .executeUpdate();
         em.clear();
         return payment;
     }
