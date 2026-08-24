@@ -18,6 +18,7 @@ import com.programmers.kdt.payment.exception.PaymentErrorCode;
 import com.programmers.kdt.payment.exception.PointErrorCode;
 import com.programmers.kdt.payment.repository.PaymentRefundRepository;
 import com.programmers.kdt.payment.repository.PaymentRepository;
+import com.programmers.kdt.payment.service.tx.PaymentTxOps;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -66,13 +67,16 @@ class PaymentServiceImplTest {
     private IdempotencyKeyService idempotencyKeyService;
     @Mock
     private ObjectMapper objectMapper;
+    @Mock
+    private PaymentTxOps paymentTxOps;
 
     private PaymentService paymentService;
 
 
+
     @BeforeEach
     void setUp() {
-        paymentService = new PaymentServiceImpl(paymentRepository, orderRepository, paymentRefundRepository, refundEventPublisher, performanceClient, orderClient, pgClient, pointService, idempotencyKeyService, objectMapper, paymentResultEventPublisher);
+        paymentService = new PaymentServiceImpl(paymentRepository, orderRepository, paymentRefundRepository, refundEventPublisher, performanceClient, orderClient, pgClient, pointService, idempotencyKeyService, objectMapper, paymentResultEventPublisher, paymentTxOps);
         lenient().when(idempotencyKeyService.generate(any(String.class), any(String.class))).thenReturn(Optional.empty());
         lenient().when(objectMapper.writeValueAsString(any())).thenReturn("{}");
     }

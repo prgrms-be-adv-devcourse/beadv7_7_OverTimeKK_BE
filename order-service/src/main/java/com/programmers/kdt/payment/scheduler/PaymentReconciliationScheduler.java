@@ -35,7 +35,7 @@ public class PaymentReconciliationScheduler {
 
     private static final int BATCH_SIZE = 50;
     private static final int MAX_POINT_ROLLBACK_ATTEMPTS = 3;
-    private static final Duration GIVE_UP_THRESHOLD = Duration.ofMinutes(20);
+    private static final Duration GIVE_UP_THRESHOLD = Duration.ofMinutes(10);
 
     private final PaymentRepository paymentRepository;
     private final PgClient pgClient;
@@ -43,7 +43,7 @@ public class PaymentReconciliationScheduler {
     private final PaymentResultEventPublisher paymentResultEventPublisher;
     private final PointService pointService;
 
-    @Scheduled(fixedDelay = 30000)
+    @Scheduled(fixedDelay = 60000)
     public void reconcilePayments() {
         Page<Payment> payments = paymentRepository.findByPaymentStatus(
                 PaymentStatus.CONFIRM_PENDING_VERIFICATION,

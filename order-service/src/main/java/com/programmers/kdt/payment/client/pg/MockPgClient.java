@@ -4,13 +4,33 @@ import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDateTime;
+import java.util.Map;
+import java.util.Queue;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.function.Supplier;
 
 // 실제 PG사가 아닌 모킹으로 우선 구현(토스페이로 교체 예정)
-
 @Profile("!toss")
 @Component
 public class MockPgClient implements PgClient {
+
+    private final Map<String, Queue<Supplier<PgApproveResult>>> approveBehaviors = new ConcurrentHashMap<>();
+    private final Map<String, Queue<Supplier<PgApproveResult>>> selectBehaviors = new ConcurrentHashMap<>();
+
+    public void stubApprove(String paymentKey, Supplier<PgApproveResult> behavior) {
+        approveBehaviors.computeIfAbsent(paymentKey, k -> new ConcurrentLinkedQueue<>()).add(behavior);
+    }
+
+    public void stubSelect(String paymentKey, Supplier<PgApproveResult> behavior) {
+        selectBehaviors.computeIfAbsent(paymentKey, k -> new ConcurrentLinkedQueue<>()).add(behavior);
+    }
+
+    public void reset() {
+        approveBehaviors.clear();
+        selectBehaviors.clear();
+    }
 
     @Override
     public PgReadyResult ready(PgReadyCommand command) {
@@ -21,7 +41,7 @@ public class MockPgClient implements PgClient {
 
     @Override
     public PgApproveResult approve(PgApproveCommand command) {
-        return new PgApproveResult(true, LocalDateTime.now());
+        return resolve(approveBehaviors, command.transactionKey());
     }
 
     @Override
@@ -31,6 +51,15 @@ public class MockPgClient implements PgClient {
 
     @Override
     public PgApproveResult select(String paymentKey) {
-        return new PgApproveResult(true, LocalDateTime.now());
+        return resolve(selectBehaviors, paymentKey);
+    }
+
+    private PgApproveResult resolve(Map<String, Queue<Supplier<PgApproveResult>>> behaviors, String key) {
+        Queue<Supplier<PgApproveResult>> queue = behaviors.get(key);
+        if (queue == null || queue.isEmpty()) {
+            return new PgApproveResult(true, LocalDateTime.now());
+        }
+        Supplier<PgApproveResult> behavior = queue.size() > 1 ? queue.poll() : queue.peek();
+        return behavior.get();
     }
 }
