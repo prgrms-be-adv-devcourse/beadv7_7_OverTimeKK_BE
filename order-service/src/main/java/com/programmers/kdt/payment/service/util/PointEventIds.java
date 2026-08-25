@@ -7,7 +7,7 @@ public final class PointEventIds {
     }
 
     public static String rollbackEventId(Long orderId) {
-        return "ORDER:" + orderId + ":POINT_ROLLBACK_FAIL";
+        return "ORDER:" + orderId + ":POINT_ROLLBACK_REFUND";
     }
 
     public static String rollbackFailEventId(Long orderId) {
