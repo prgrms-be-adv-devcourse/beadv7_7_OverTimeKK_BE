@@ -156,4 +156,25 @@ class PaymentReconciliationSchedulerTest {
         verify(paymentTxOps).applyReconcileResult(5L, PgOutcome.EXPLICIT_FAIL);
         verify(paymentResultEventPublisher).publishFailed(any(PaymentFailEvent.class));
     }
+
+    @Test
+    @DisplayName("한 건에서 동시성 충돌(BusinessException)이 발생해도 나머지 결제는 계속 처리된다.")
+    void concurrentModificationOnOnePayment_doesNotStopBatch() {
+        Payment conflicted = pendingPayment(6L, LocalDateTime.now());
+        Payment healthy = pendingPayment(7L, LocalDateTime.now());
+        stubPending(conflicted, healthy);
+
+        when(pgClient.select("PG_KEY_6")).thenReturn(new PgApproveResult(true, LocalDateTime.now()));
+        when(paymentTxOps.applyReconcileResult(6L, PgOutcome.SUCCESS))
+                .thenThrow(new com.programmers.kdt.common.exception.BusinessException(
+                        PaymentErrorCode.PAYMENT_CONCURRENT_MODIFICATION));
+
+        when(pgClient.select("PG_KEY_7")).thenReturn(new PgApproveResult(true, LocalDateTime.now()));
+        when(paymentTxOps.applyReconcileResult(7L, PgOutcome.SUCCESS)).thenReturn(healthy);
+
+        scheduler.reconcilePayments();
+
+        verify(paymentResultEventPublisher, never()).publishConfirmed(new PaymentConfirmEvent(1L, 6L));
+        verify(paymentResultEventPublisher).publishConfirmed(new PaymentConfirmEvent(1L, 7L));
+    }
 }

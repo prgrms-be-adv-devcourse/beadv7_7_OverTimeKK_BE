@@ -1,5 +1,6 @@
 package com.programmers.kdt.payment.client.pg;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
@@ -18,6 +19,9 @@ public class MockPgClient implements PgClient {
 
     private final Map<String, Queue<Supplier<PgApproveResult>>> approveBehaviors = new ConcurrentHashMap<>();
     private final Map<String, Queue<Supplier<PgApproveResult>>> selectBehaviors = new ConcurrentHashMap<>();
+
+    @Value("${pg.mock.approve-delay-ms:0}")
+    private long approveDelayMs;
 
     public void stubApprove(String paymentKey, Supplier<PgApproveResult> behavior) {
         approveBehaviors.computeIfAbsent(paymentKey, k -> new ConcurrentLinkedQueue<>()).add(behavior);
@@ -41,6 +45,7 @@ public class MockPgClient implements PgClient {
 
     @Override
     public PgApproveResult approve(PgApproveCommand command) {
+        sleepIfConfigured();
         return resolve(approveBehaviors, command.transactionKey());
     }
 
@@ -52,6 +57,15 @@ public class MockPgClient implements PgClient {
     @Override
     public PgApproveResult select(String paymentKey) {
         return resolve(selectBehaviors, paymentKey);
+    }
+
+    private void sleepIfConfigured() {
+        if (approveDelayMs <= 0) return;
+        try {
+            Thread.sleep(approveDelayMs);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
     }
 
     private PgApproveResult resolve(Map<String, Queue<Supplier<PgApproveResult>>> behaviors, String key) {

@@ -455,6 +455,22 @@ class PaymentServiceImplTest {
         }
 
         @Test
+        @DisplayName("PG 승인 호출에서 처리되지 않는 예외가 발생하면 tx2를 타지 않고 예외가 그대로 전파되며, 결제는 재조회 대상 상태로 남는다.")
+        void confirmUnexpectedExceptionSkipsTx2AndPropagates() {
+            when(paymentTxOps.assignKeyAndCommit(eq(1L), any()))
+                    .thenAnswer(inv -> { payment.markPending(); return payment; });
+            when(pgClient.approve(any())).thenThrow(new NullPointerException("PG 응답 파싱 실패"));
+
+            assertThatThrownBy(() -> paymentService.confirm(1L, new ConfirmPaymentRequest("PG_KEY_123"), "idem-key", 100L))
+                    .isInstanceOf(NullPointerException.class);
+
+            assertThat(payment.getPaymentStatus()).isEqualTo(PaymentStatus.CONFIRM_PENDING_VERIFICATION);
+            verify(paymentTxOps, never()).applyConfirmResult(anyLong(), any());
+            verifyNoInteractions(paymentResultEventPublisher);
+            verify(idempotencyKeyService).release("CONFIRM:idem-key");
+        }
+
+        @Test
         @DisplayName("포인트를 사용한 결제가 승인되면 PG 승인 금액에서 포인트만큼 차감되고, 포인트는 다시 건드리지 않는다.")
         void confirmSuccessWithPoint() {
             when(paymentTxOps.assignKeyAndCommit(eq(1L), any()))

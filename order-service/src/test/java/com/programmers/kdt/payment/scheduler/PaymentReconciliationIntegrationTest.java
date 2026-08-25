@@ -48,12 +48,16 @@ public class PaymentReconciliationIntegrationTest {
     }
 
     private Payment persistPendingPayment(String paymentKey) {
+        return persistPendingPayment(paymentKey, java.time.Duration.ofMinutes(1));
+    }
+
+    private Payment persistPendingPayment(String paymentKey, java.time.Duration age) {
         Payment payment = Payment.create(1L, 10L, 10000L);
         payment.assignPaymentKey(paymentKey);
         payment.markPending();
         paymentRepository.saveAndFlush(payment);
         em.createQuery("update Payment p set p.modifiedAt = :t where p.id = :id")
-                .setParameter("t", LocalDateTime.now().minusMinutes(1))
+                .setParameter("t", LocalDateTime.now().minus(age))
                 .setParameter("id", payment.getId())
                 .executeUpdate();
         em.clear();
@@ -105,6 +109,33 @@ public class PaymentReconciliationIntegrationTest {
         assertThat(result.getPaymentStatus()).isEqualTo(PaymentStatus.CONFIRM_PENDING_VERIFICATION);
         assertThat(result.getModifiedAt()).isEqualTo(originModifiedAt);
         verifyNoInteractions(paymentResultEventPublisher);
+    }
+
+    @Test
+    @DisplayName("MIN_PENDING_AGE(40초) 미만으로 대기 중인 결제는 이번 배치에서 건드리지 않는다.")
+    void reconcile_underMinPendingAge_skipsPayment() {
+        Payment pending = persistPendingPayment("PG_KEY_YOUNG", java.time.Duration.ofSeconds(30));
+        mockPgClient.stubSelect("PG_KEY_YOUNG", () -> new PgApproveResult(true, LocalDateTime.now()));
+
+        scheduler.reconcilePayments();
+
+        Payment result = paymentRepository.findById(pending.getId()).orElseThrow();
+        assertThat(result.getPaymentStatus()).isEqualTo(PaymentStatus.CONFIRM_PENDING_VERIFICATION);
+        verifyNoInteractions(paymentResultEventPublisher);
+    }
+
+    @Test
+    @DisplayName("MIN_PENDING_AGE(40초)를 넘겨 대기 중인 결제는 이번 배치에 포함된다.")
+    void reconcile_overMinPendingAge_includesPayment() {
+        Payment pending = persistPendingPayment("PG_KEY_OLD", java.time.Duration.ofSeconds(45));
+        mockPgClient.stubSelect("PG_KEY_OLD", () -> new PgApproveResult(true, LocalDateTime.now()));
+
+        scheduler.reconcilePayments();
+
+        Payment result = paymentRepository.findById(pending.getId()).orElseThrow();
+        assertThat(result.getPaymentStatus()).isEqualTo(PaymentStatus.PAID);
+        verify(paymentResultEventPublisher).publishConfirmed(
+                new PaymentConfirmEvent(result.getOrderId(), result.getId()));
     }
 }
 
