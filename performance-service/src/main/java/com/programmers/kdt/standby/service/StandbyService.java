@@ -151,7 +151,7 @@ public class StandbyService {
 
     // 본인의 WAITING/HELD 대기를 취소. HELD 상태였다면 취소 즉시 같은 zone의 다음 대기자에게 매칭을 넘긴다.
     public void cancelStandby(Long standbyId, Long userId) {
-        Standby standby = findOwnedStandby(standbyId, userId);
+        Standby standby = findOwnedStandbyForUpdate(standbyId, userId);
 
         boolean wasHeld = standby.getStandbyStatus() == StandbyStatus.HELD;
         String matchedZone = standby.getMatchedZone();
@@ -167,7 +167,7 @@ public class StandbyService {
 
     // 지망 zone 중 하나만 취소. 취소한 zone이 매칭돼있던(HELD) zone이었다면, 그 zone의 다음 대기자에게 즉시 매칭을 넘긴다.
     public void cancelZone(Long standbyId, Long userId, String zone) {
-        Standby standby = findOwnedStandby(standbyId, userId);
+        Standby standby = findOwnedStandbyForUpdate(standbyId, userId);
 
         boolean wasMatchedZone = zone.equals(standby.getMatchedZone());
         Long ticketId = standby.getTicketId();
@@ -182,6 +182,17 @@ public class StandbyService {
 
     private Standby findOwnedStandby(Long standbyId, Long userId) {
         Standby standby = standbyRepository.findById(standbyId)
+                .orElseThrow(() -> new BusinessException(StandbyErrorCode.STANDBY_NOT_FOUND));
+
+        if (!standby.getUserId().equals(userId)) {
+            throw new BusinessException(StandbyErrorCode.NOT_STANDBY_OWNER);
+        }
+        return standby;
+    }
+
+    // cancelStandby/cancelZone 전용 락 조회
+    private Standby findOwnedStandbyForUpdate(Long standbyId, Long userId) {
+        Standby standby = standbyRepository.findByIdForUpdate(standbyId)
                 .orElseThrow(() -> new BusinessException(StandbyErrorCode.STANDBY_NOT_FOUND));
 
         if (!standby.getUserId().equals(userId)) {
