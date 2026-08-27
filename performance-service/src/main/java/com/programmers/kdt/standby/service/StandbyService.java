@@ -149,7 +149,8 @@ public class StandbyService {
                 .orElseThrow(() -> new BusinessException(PerformanceErrorCode.PERFORMANCE_SESSION_NOT_FOUND));
     }
 
-    // 본인의 WAITING/HELD 대기를 취소. HELD 상태였다면 취소 즉시 같은 zone의 다음 대기자에게 매칭을 넘긴다.
+    // 본인의 WAITING/HELD 대기를 취소. HELD 상태였다면 재매칭을 커밋 이후 이벤트로 위임한다
+    // (한 트랜잭션에서 락 2개를 동시에 쥐면 데드락이 나서, 트랜잭션을 분리함).
     public void cancelStandby(Long standbyId, Long userId) {
         Standby standby = findOwnedStandbyForUpdate(standbyId, userId);
 
@@ -161,11 +162,11 @@ public class StandbyService {
         standby.cancel();
 
         if (wasHeld) {
-            matchNextCandidate(session, matchedZone, ticketId);
+            requestRematch(session, matchedZone, ticketId);
         }
     }
 
-    // 지망 zone 중 하나만 취소. 취소한 zone이 매칭돼있던(HELD) zone이었다면, 그 zone의 다음 대기자에게 즉시 매칭을 넘긴다.
+    // 지망 zone 중 하나만 취소. 매칭돼있던(HELD) zone이면 cancelStandby와 동일하게 재매칭을 이벤트로 위임.
     public void cancelZone(Long standbyId, Long userId, String zone) {
         Standby standby = findOwnedStandbyForUpdate(standbyId, userId);
 
@@ -176,8 +177,15 @@ public class StandbyService {
         standby.cancelZone(zone);
 
         if (wasMatchedZone) {
-            matchNextCandidate(session, zone, ticketId);
+            requestRematch(session, zone, ticketId);
         }
+    }
+
+    // 티켓취소 경로가 쓰는 매칭 요청 이벤트를 재사용 (AFTER_COMMIT + REQUIRES_NEW로 처리됨)
+    private void requestRematch(PerformanceSession session, String zone, Long ticketId) {
+        PerformanceSessionId sessionId = session.getPerformanceSessionId();
+        eventPublisher.publishEvent(
+                new StandbyCheckRequestEvent(sessionId.getPerformanceId(), sessionId.getSessionNum(), zone, ticketId));
     }
 
     private Standby findOwnedStandby(Long standbyId, Long userId) {
