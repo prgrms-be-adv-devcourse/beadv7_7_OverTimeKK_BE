@@ -14,11 +14,15 @@ import com.programmers.kdt.order.dto.ValidateTicketRequest;
 import com.programmers.kdt.order.entity.Order;
 import com.programmers.kdt.order.entity.OrderItem;
 import com.programmers.kdt.order.entity.OrderStatus;
+import com.programmers.kdt.order.entity.TicketCancelJob;
 import com.programmers.kdt.order.event.TicketCancelRequestEvent;
 import com.programmers.kdt.order.event.TicketReleaseRequestEvent;
 import com.programmers.kdt.order.exception.OrderErrorCode;
 import com.programmers.kdt.order.repository.OrderRepository;
+import com.programmers.kdt.order.repository.TicketCancelJobRepository;
+import com.programmers.kdt.payment.dto.RefundPaymentRequest;
 import com.programmers.kdt.payment.service.PaymentService;
+import com.programmers.kdt.payment.dto.RefundPaymentRequest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -51,6 +55,8 @@ class OrderServiceImplTest {
     @Mock
     private OrderRepository orderRepository;
     @Mock
+    private TicketCancelJobRepository ticketCancelJobRepository;
+    @Mock
     private TicketClient ticketClient;
     @Mock
     private PaymentService paymentService;
@@ -63,6 +69,7 @@ class OrderServiceImplTest {
     void setUp() {
         orderService = new OrderServiceImpl(
                 orderRepository,
+                ticketCancelJobRepository,
                 ticketClient,
                 paymentService,
                 eventPublisher
@@ -174,74 +181,157 @@ class OrderServiceImplTest {
         }
     }
 
-    @Test
-    @DisplayName("만료 대상 주문을 만료시키고 각각 좌석 해제 이벤트를 발행한다")
-    void expireOrders() {
-        Order first = pendingOrder(ORDER_ID, TICKET_ID, HOLD_KEY);
-        Order second = pendingOrder(2L, 200L, "second-hold-key");
-        when(orderRepository.findAllByOrderStatusAndExpiresAtLessThanEqual(
-                org.mockito.ArgumentMatchers.eq(OrderStatus.PENDING), any(LocalDateTime.class)
-        )).thenReturn(List.of(first, second));
-
-        orderService.expireOrders();
-
-        assertThat(first.getOrderStatus()).isEqualTo(OrderStatus.EXPIRED);
-        assertThat(second.getOrderStatus()).isEqualTo(OrderStatus.EXPIRED);
-        ArgumentCaptor<TicketReleaseRequestEvent> captor =
-                ArgumentCaptor.forClass(TicketReleaseRequestEvent.class);
-        verify(eventPublisher, org.mockito.Mockito.times(2)).publishEvent(captor.capture());
-        assertThat(captor.getAllValues()).containsExactly(
-                new TicketReleaseRequestEvent(ORDER_ID, TICKET_ID, HOLD_KEY),
-                new TicketReleaseRequestEvent(2L, 200L, "second-hold-key")
-        );
-    }
-
     @Nested
-    @DisplayName("결제 시작")
-    class StartPayment {
+    @DisplayName("주문 만료")
+    class ExpireOrder {
 
         @Test
-        @DisplayName("유효한 PENDING 주문을 PAYMENT_STARTED로 변경한다")
+        @DisplayName("조건부 만료에 성공하면 좌석 해제 이벤트를 발행한다")
         void success() {
+            LocalDateTime now = LocalDateTime.now();
             Order order = pendingOrder();
+            when(orderRepository.tryExpire(
+                    ORDER_ID, OrderStatus.PENDING, OrderStatus.EXPIRED, now
+            )).thenReturn(1);
             when(orderRepository.findById(ORDER_ID)).thenReturn(Optional.of(order));
 
-            orderService.startPayment(ORDER_ID);
+            orderService.expireOrder(ORDER_ID, now);
 
-            assertThat(order.getOrderStatus()).isEqualTo(OrderStatus.PAYMENT_STARTED);
+            verify(eventPublisher).publishEvent(
+                    new TicketReleaseRequestEvent(ORDER_ID, TICKET_ID, HOLD_KEY)
+            );
         }
 
         @Test
-        @DisplayName("이미 만료 시각이 지난 주문이면 예외가 발생한다")
-        void expiredOrder() {
-            Order order = orderWithExpiration(LocalDateTime.now().minusSeconds(1));
-            when(orderRepository.findById(ORDER_ID)).thenReturn(Optional.of(order));
+        @DisplayName("다른 상태 전이가 먼저 성공하면 좌석 해제 이벤트를 발행하지 않는다")
+        void transitionAlreadyWon() {
+            LocalDateTime now = LocalDateTime.now();
+            when(orderRepository.tryExpire(
+                    ORDER_ID, OrderStatus.PENDING, OrderStatus.EXPIRED, now
+            )).thenReturn(0);
 
-            assertBusinessException(
-                    () -> orderService.startPayment(ORDER_ID),
-                    OrderErrorCode.ORDER_ALREADY_EXPIRED
+            orderService.expireOrder(ORDER_ID, now);
+
+            verify(orderRepository, never()).findById(anyLong());
+            verifyNoInteractions(eventPublisher);
+        }
+    }
+
+    @Nested
+    @DisplayName("결제 완료 주문 취소")
+    class CancelCompletedOrder {
+      
+        @Test
+        @DisplayName("취소 접수 직후 CANCEL_REQUESTED 상태가 되고 티켓 취소 이벤트를 발행하지 않는다")
+        void requestCancelDoesNotCancelTicketImmediately() {
+            Order order = completedOrder();
+            when(orderRepository.findByIdForUpdate(ORDER_ID)).thenReturn(Optional.of(order));
+            CancelOrderResponse response = orderService.cancelCompletedOrder(
+                ORDER_ID, USER_ID, new CancelOrderRequest("단순 변심")
+            );
+
+            assertThat(response.orderStatus()).isEqualTo(OrderStatus.CANCEL_REQUESTED.name());
+            verify(paymentService).refund(
+                    org.mockito.ArgumentMatchers.eq(ORDER_ID),
+                    org.mockito.ArgumentMatchers.argThat(request -> request.reason().equals("단순 변심"))
+            );
+            verify(eventPublisher, never()).publishEvent(
+                    any(TicketCancelRequestEvent.class)
+            );
+        }
+
+        @Test
+        @DisplayName("취소 접수 중 재요청하면 환불을 추가 접수하지 않는다")
+        void duplicateRequestIsIdempotent() {
+            Order order = completedOrder();
+            when(orderRepository.findByIdForUpdate(ORDER_ID)).thenReturn(Optional.of(order));
+
+            CancelOrderResponse firstResponse = orderService.cancelCompletedOrder(
+                    ORDER_ID, USER_ID, new CancelOrderRequest("단순 변심")
+            );
+            CancelOrderResponse secondResponse = orderService.cancelCompletedOrder(
+                    ORDER_ID, USER_ID, new CancelOrderRequest("단순 변심")
+            );
+
+            assertThat(firstResponse.orderStatus()).isEqualTo(OrderStatus.CANCEL_REQUESTED.name());
+            assertThat(secondResponse).isEqualTo(firstResponse);
+            verify(paymentService, org.mockito.Mockito.times(1)).refund(
+                    org.mockito.ArgumentMatchers.eq(ORDER_ID),
+                    any(RefundPaymentRequest.class)
+            );
+            verify(eventPublisher, never()).publishEvent(
+                    any(TicketCancelRequestEvent.class)
             );
         }
     }
 
-    @Test
-    @DisplayName("완료 주문을 환불하면 주문을 취소하고 티켓 취소 이벤트를 발행한다")
-    void cancelCompletedOrder() {
-        Order order = completedOrder();
-        when(orderRepository.findById(ORDER_ID)).thenReturn(Optional.of(order));
+    @Nested
+    @DisplayName("환불 결과 반영")
+    class HandleRefundResult {
 
-        CancelOrderResponse response = orderService.cancelCompletedOrder(
-                ORDER_ID, USER_ID, new CancelOrderRequest("단순 변심")
-        );
+        @Test
+        @DisplayName("환불 성공 시 주문을 CANCELLED로 확정하고 티켓 취소 이벤트를 발행한다")
+        void confirmCancellation() {
+            Order order = cancelRequestedOrder();
+            when(orderRepository.findByIdForUpdate(ORDER_ID)).thenReturn(Optional.of(order));
 
-        assertThat(response.orderStatus()).isEqualTo(OrderStatus.CANCELLED.name());
-        verify(paymentService).refund(
-                org.mockito.ArgumentMatchers.eq(ORDER_ID),
-                org.mockito.ArgumentMatchers.argThat(request -> request.reason().equals("단순 변심"))
-        );
-        verify(eventPublisher).publishEvent(
-                new TicketCancelRequestEvent(TICKET_ID, USER_ID, ORDER_ID)
-        );
+            orderService.confirmCancellation(ORDER_ID);
+
+            assertThat(order.getOrderStatus()).isEqualTo(OrderStatus.CANCELLED);
+            ArgumentCaptor<TicketCancelJob> jobCaptor = ArgumentCaptor.forClass(TicketCancelJob.class);
+            verify(ticketCancelJobRepository).save(jobCaptor.capture());
+            assertThat(jobCaptor.getValue().getOrderId()).isEqualTo(ORDER_ID);
+            assertThat(jobCaptor.getValue().getTicketId()).isEqualTo(TICKET_ID);
+            assertThat(jobCaptor.getValue().getUserId()).isEqualTo(USER_ID);
+            verify(eventPublisher).publishEvent(
+                    new TicketCancelRequestEvent(TICKET_ID, USER_ID, ORDER_ID)
+            );
+        }
+
+        @Test
+        @DisplayName("환불 성공 이벤트를 중복 처리해도 티켓 취소 이벤트는 한 번만 발행한다")
+        void duplicateConfirmCancellation() {
+            Order order = cancelRequestedOrder();
+            when(orderRepository.findByIdForUpdate(ORDER_ID)).thenReturn(Optional.of(order));
+
+            orderService.confirmCancellation(ORDER_ID);
+            orderService.confirmCancellation(ORDER_ID);
+
+            assertThat(order.getOrderStatus()).isEqualTo(OrderStatus.CANCELLED);
+            verify(eventPublisher, org.mockito.Mockito.times(1)).publishEvent(
+                    new TicketCancelRequestEvent(TICKET_ID, USER_ID, ORDER_ID)
+            );
+            verify(ticketCancelJobRepository, org.mockito.Mockito.times(1)).save(any(TicketCancelJob.class));
+        }
+
+        @Test
+        @DisplayName("환불 실패 시 주문을 COMPLETED로 복구하고 티켓 취소 이벤트를 발행하지 않는다")
+        void revertCancellation() {
+            Order order = cancelRequestedOrder();
+            when(orderRepository.findByIdForUpdate(ORDER_ID)).thenReturn(Optional.of(order));
+
+            orderService.revertCancellation(ORDER_ID);
+
+            assertThat(order.getOrderStatus()).isEqualTo(OrderStatus.COMPLETED);
+            verify(eventPublisher, never()).publishEvent(
+                    any(TicketCancelRequestEvent.class)
+            );
+        }
+
+        @Test
+        @DisplayName("환불 실패 이벤트를 중복 처리해도 COMPLETED 상태를 유지한다")
+        void duplicateRevertCancellation() {
+            Order order = cancelRequestedOrder();
+            when(orderRepository.findByIdForUpdate(ORDER_ID)).thenReturn(Optional.of(order));
+
+            orderService.revertCancellation(ORDER_ID);
+            orderService.revertCancellation(ORDER_ID);
+
+            assertThat(order.getOrderStatus()).isEqualTo(OrderStatus.COMPLETED);
+            verify(eventPublisher, never()).publishEvent(
+                    any(TicketCancelRequestEvent.class)
+            );
+        }
     }
 
     @Nested
@@ -373,6 +463,12 @@ class OrderServiceImplTest {
         return order;
     }
 
+    private Order cancelRequestedOrder() {
+        Order order = completedOrder();
+        order.requestCancel();
+        return order;
+    }
+  
     private Order cancelledOrder() {
         Order order = pendingOrder(2L, 200L, "cancel-hold-key");
         order.cancelPending();

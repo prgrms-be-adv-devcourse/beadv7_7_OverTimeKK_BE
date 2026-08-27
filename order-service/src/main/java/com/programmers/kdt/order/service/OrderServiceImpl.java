@@ -14,10 +14,12 @@ import com.programmers.kdt.order.dto.ValidateTicketRequest;
 import com.programmers.kdt.order.entity.Order;
 import com.programmers.kdt.order.entity.OrderItem;
 import com.programmers.kdt.order.entity.OrderStatus;
+import com.programmers.kdt.order.entity.TicketCancelJob;
 import com.programmers.kdt.order.event.TicketCancelRequestEvent;
 import com.programmers.kdt.order.event.TicketReleaseRequestEvent;
 import com.programmers.kdt.order.exception.OrderErrorCode;
 import com.programmers.kdt.order.repository.OrderRepository;
+import com.programmers.kdt.order.repository.TicketCancelJobRepository;
 import com.programmers.kdt.payment.dto.RefundPaymentRequest;
 import com.programmers.kdt.payment.service.PaymentService;
 import lombok.RequiredArgsConstructor;
@@ -36,6 +38,7 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class OrderServiceImpl implements OrderService {
     private final OrderRepository orderRepository;
+    private final TicketCancelJobRepository ticketCancelJobRepository;
     private final TicketClient ticketClient;
     private final PaymentService paymentService;
     private final ApplicationEventPublisher eventPublisher;
@@ -95,35 +98,33 @@ public class OrderServiceImpl implements OrderService {
     // 주문 만료
     @Override
     @Transactional
-    public void expireOrders(){
-        LocalDateTime now = LocalDateTime.now();
-
-        List<Order> orders = orderRepository.findAllByOrderStatusAndExpiresAtLessThanEqual(
+    public void expireOrder(Long orderId, LocalDateTime now){
+        int updatedRow = orderRepository.tryExpire(
+                orderId,
                 OrderStatus.PENDING,
+                OrderStatus.EXPIRED,
                 now
         );
-        for(Order order : orders){
-            order.expire();
-            publishTicketReleaseEvent(order);
+        if(updatedRow == 0){
+            return;
         }
-    }
 
-    // 주문 만료 조회 -- 결제 생성 API 클릭 시 호출
-    @Override
-    @Transactional
-    public void startPayment(Long orderId) {
         Order order = findOrder(orderId);
-
-        order.startPayment(LocalDateTime.now());
+        publishTicketReleaseEvent(order);
     }
 
     // 결제 후 주문 취소
     @Override
     @Transactional
     public CancelOrderResponse cancelCompletedOrder(Long orderId, Long userId, CancelOrderRequest request) {
-        Order order = findOrder(orderId);
+        Order order = findOrderForUpdate(orderId);
 
         if(!userId.equals(order.getUserId())) throw new BusinessException(OrderErrorCode.ORDER_ACCESS_DENIED);
+      
+        // 이미 취소 접수된 주문의 재요청은 동일 응답을 반환
+        if (order.isCancelRequested()) {
+            return CancelOrderResponse.from(order);
+        }
 
         // 취소 가능한 주문인지 검증
         order.validateCancel();
@@ -131,14 +132,31 @@ public class OrderServiceImpl implements OrderService {
         // 결제 취소
         paymentService.refund(
                 order.getOrderId(),
-                new RefundPaymentRequest(request.reason())); // paymentService의 cancel메서드 파라미터 :orderId로 변경
+                new RefundPaymentRequest(request.reason()));
 
-        // 결제 취소 성공 -> 주문 취소 완료
-        order.cancelCompleted();
-
-        publishTicketCancelEvent(order);
+        // 환불 결과가 나오기 전까지는 취소 접수 상태와 티켓 예약을 유지
+        order.requestCancel();
 
         return CancelOrderResponse.from(order);
+    }
+
+    @Override
+    @Transactional
+    public void confirmCancellation(Long orderId) {
+        Order order = findOrderForUpdate(orderId);
+        if (order.confirmCancel()) {
+            ticketCancelJobRepository.save(
+                    TicketCancelJob.create(order.getOrderId(), order.getTicketId(), order.getUserId())
+            );
+            publishTicketCancelEvent(order);
+        }
+    }
+
+    @Override
+    @Transactional
+    public void revertCancellation(Long orderId) {
+        Order order = findOrderForUpdate(orderId);
+        order.revertCancel();
     }
 
     @Override
@@ -185,6 +203,11 @@ public class OrderServiceImpl implements OrderService {
         return orderRepository.findById(orderId)
                 .orElseThrow(()->
                         new BusinessException(OrderErrorCode.ORDER_NOT_FOUND));
+    }
+
+    private Order findOrderForUpdate(Long orderId) {
+        return orderRepository.findByIdForUpdate(orderId)
+                .orElseThrow(() -> new BusinessException(OrderErrorCode.ORDER_NOT_FOUND));
     }
 
     private void publishTicketReleaseEvent(Order order) {

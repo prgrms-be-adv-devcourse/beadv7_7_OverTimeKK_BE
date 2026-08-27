@@ -48,7 +48,6 @@ public class Payment extends BaseTimeEntity {
 
     //결제 생성 메서드
     public static Payment create(Long orderId, Long userId, Long amount) {
-
         if (orderId == null) { // 어떤 예외처리 ?
             throw new BusinessException(PaymentErrorCode.MISSING_ORDER_ID);
         }
@@ -74,6 +73,32 @@ public class Payment extends BaseTimeEntity {
             throw new BusinessException(PaymentErrorCode.INVALID_PAYMENT_STATUS, this.paymentStatus);
         }
         this.paymentStatus = PaymentStatus.PAID;
+    }
+
+    public void markPending() {
+        if (paymentStatus == PaymentStatus.PAID) {
+            return;
+        }
+        if (!isReady()) {
+            throw new BusinessException(PaymentErrorCode.INVALID_PAYMENT_STATUS, this.paymentStatus);
+        }
+        this.paymentStatus = PaymentStatus.CONFIRM_PENDING_VERIFICATION;
+    }
+
+    public void confirmVerifiedSuccess() {
+        if (paymentStatus == PaymentStatus.PAID) return;
+        if (paymentStatus != PaymentStatus.CONFIRM_PENDING_VERIFICATION) {
+            throw new BusinessException(PaymentErrorCode.INVALID_PAYMENT_STATUS, this.paymentStatus);
+        }
+        this.paymentStatus = PaymentStatus.PAID;
+    }
+
+    public void confirmVerifiedFail() {
+        if (paymentStatus == PaymentStatus.FAILED) return;
+        if (paymentStatus != PaymentStatus.CONFIRM_PENDING_VERIFICATION) {
+            throw new BusinessException(PaymentErrorCode.INVALID_PAYMENT_STATUS, this.paymentStatus);
+        }
+        this.paymentStatus = PaymentStatus.FAILED;
     }
 
     // PG사 키 등록

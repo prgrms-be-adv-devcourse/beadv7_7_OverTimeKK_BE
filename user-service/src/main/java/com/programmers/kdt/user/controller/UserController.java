@@ -7,6 +7,8 @@ import com.programmers.kdt.user.dto.EmailVerificationConfirmRequest;
 import com.programmers.kdt.user.dto.EmailVerificationRequest;
 import com.programmers.kdt.user.dto.LoginRequest;
 import com.programmers.kdt.user.dto.LoginResponse;
+import com.programmers.kdt.user.dto.QueueEnterResponse;
+import com.programmers.kdt.user.dto.QueueStatusResponse;
 import com.programmers.kdt.user.dto.RefreshTokenRequest;
 import com.programmers.kdt.user.dto.SignUpBusinessRequest;
 import com.programmers.kdt.user.dto.SignUpIndividualRequest;
@@ -15,8 +17,8 @@ import com.programmers.kdt.user.dto.WithdrawRequest;
 
 import com.programmers.kdt.user.dto.EmailNotificationRequest;
 
-import com.programmers.kdt.common.jwt.JwtAuthFilter;
 import com.programmers.kdt.user.email.EmailVerificationService;
+import com.programmers.kdt.user.queue.LoginQueueService;
 import com.programmers.kdt.user.service.UserService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -28,8 +30,11 @@ import org.springframework.web.bind.annotation.*;
 @RequiredArgsConstructor
 public class UserController {
 
+    private static final String ADMISSION_TOKEN_HEADER = "X-Admission-Token";
+
     private final UserService userService;
     private final EmailVerificationService emailVerificationService;
+    private final LoginQueueService loginQueueService;
 
     @PostMapping("/email/verification-codes")
     public ApiResponse<Void> sendVerificationCode(@Valid @RequestBody EmailVerificationRequest request) {
@@ -55,9 +60,30 @@ public class UserController {
         return ApiResponse.success(userService.signUpBusiness(request));
     }
 
+    @PostMapping("/login/queue/enter")
+    public ApiResponse<QueueEnterResponse> enterLoginQueue() {
+        LoginQueueService.QueueEnterResult result = loginQueueService.enter();
+        String status = result.admitted() ? "READY" : "WAITING";
+        return ApiResponse.success(new QueueEnterResponse(status, result.token(), null));
+    }
+
+    @GetMapping("/login/queue/status")
+    public ApiResponse<QueueStatusResponse> loginQueueStatus(@RequestParam String token) {
+        LoginQueueService.QueueStatusResult result = loginQueueService.status(token);
+        return ApiResponse.success(new QueueStatusResponse(result.status(), result.position()));
+    }
+
     @PostMapping("/login")
-    public ApiResponse<LoginResponse> login(@Valid @RequestBody LoginRequest request) {
-        return ApiResponse.success(userService.login(request));
+    public ApiResponse<LoginResponse> login(@RequestHeader(ADMISSION_TOKEN_HEADER) String admissionToken,
+                                             @Valid @RequestBody LoginRequest request) {
+        if (!loginQueueService.consumeAdmission(admissionToken)) {
+            throw new BusinessException(CommonErrorCode.FORBIDDEN);
+        }
+        try {
+            return ApiResponse.success(userService.login(request));
+        } finally {
+            loginQueueService.release(admissionToken);
+        }
     }
 
     @PostMapping("/token/refresh")
@@ -66,7 +92,7 @@ public class UserController {
     }
 
     @PostMapping("/logout")
-    public ApiResponse<Void> logout(@RequestAttribute(value = JwtAuthFilter.USER_ID_ATTRIBUTE, required = false) Long userId) {
+    public ApiResponse<Void> logout(@RequestHeader(value = "X-User-Id", required = false) Long userId) {
         if (userId == null) {
             throw new BusinessException(CommonErrorCode.UNAUTHORIZED);
         }
@@ -75,7 +101,7 @@ public class UserController {
     }
 
     @DeleteMapping("/me")
-    public ApiResponse<Void> withdraw(@RequestAttribute(value = JwtAuthFilter.USER_ID_ATTRIBUTE, required = false) Long userId,
+    public ApiResponse<Void> withdraw(@RequestHeader(value = "X-User-Id", required = false) Long userId,
                                        @Valid @RequestBody WithdrawRequest request) {
         if (userId == null) {
             throw new BusinessException(CommonErrorCode.UNAUTHORIZED);
@@ -88,7 +114,7 @@ public class UserController {
      * 로그인한 본인의 정보 조회. 프론트는 반드시 이 API만 사용 (아래 /{userId}를 직접 호출 금지)
      */
     @GetMapping("/me")
-    public ApiResponse<UserResponse> getMe(@RequestAttribute(value = JwtAuthFilter.USER_ID_ATTRIBUTE, required = false) Long userId) {
+    public ApiResponse<UserResponse> getMe(@RequestHeader(value = "X-User-Id", required = false) Long userId) {
         if (userId == null) {
             throw new BusinessException(CommonErrorCode.UNAUTHORIZED);
         }

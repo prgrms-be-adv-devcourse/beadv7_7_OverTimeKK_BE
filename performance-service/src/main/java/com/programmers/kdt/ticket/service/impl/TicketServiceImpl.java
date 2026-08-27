@@ -1,6 +1,7 @@
 package com.programmers.kdt.ticket.service.impl;
 
 import com.programmers.kdt.common.exception.BusinessException;
+import com.programmers.kdt.performance.cache.PerformanceSeatPriceCacheStore;
 import com.programmers.kdt.performance.entity.PerformanceSeatPrice;
 import com.programmers.kdt.performance.entity.PerformanceSession;
 import com.programmers.kdt.performance.entity.PerformanceSessionId;
@@ -8,9 +9,11 @@ import com.programmers.kdt.performance.exception.PerformanceErrorCode;
 import com.programmers.kdt.performance.repository.PerformanceSeatPriceRepository;
 import com.programmers.kdt.performance.repository.PerformanceSessionRepository;
 import com.programmers.kdt.standby.event.StandbyTicketEvent;
+import com.programmers.kdt.ticket.cache.TicketZoneCacheStore;
 import com.programmers.kdt.ticket.dto.CreateStandbyResponse;
 import com.programmers.kdt.ticket.dto.OrderTicketResponse;
 import com.programmers.kdt.ticket.dto.SessionStartDateResponse;
+import com.programmers.kdt.ticket.dto.SessionZoneKey;
 import com.programmers.kdt.ticket.dto.TicketZoneRequest;
 import com.programmers.kdt.ticket.dto.TicketZoneResponse;
 import com.programmers.kdt.ticket.dto.TicketZonesResponse;
@@ -24,7 +27,10 @@ import org.jspecify.annotations.NonNull;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.programmers.kdt.ticket.entity.TicketStatus;
+
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
@@ -35,6 +41,8 @@ public class TicketServiceImpl implements TicketService {
     private final TicketRepository ticketRepository;
     private final PerformanceSessionRepository sessionRepository;
     private final PerformanceSeatPriceRepository performanceSeatPriceRepository;
+    private final TicketZoneCacheStore ticketZoneCacheStore;
+    private final PerformanceSeatPriceCacheStore performanceSeatPriceCacheStore;
 
     @Override
     public CreateStandbyResponse issueStandby(Long userId, Long sessionNum, String zone) {
@@ -72,9 +80,29 @@ public class TicketServiceImpl implements TicketService {
 
     @Override
     public TicketZonesResponse getTicketZone(TicketZoneRequest request) {
-        List<TicketZoneResponse> response = ticketRepository.findByZoneAndPerformance(request.performanceId(), request.sessionNum(), request.zone());
-        PerformanceSeatPrice seatPrice = performanceSeatPriceRepository.findByPerformance_PerformanceIdAndZone(request.performanceId(), request.zone());
-        return new TicketZonesResponse(seatPrice.getZone(), seatPrice.getPrice(), response);
+        SessionZoneKey zoneKey = new SessionZoneKey(request.performanceId(), request.sessionNum(), request.zone());
+        List<TicketZoneResponse> response = ticketZoneCacheStore.find(zoneKey)
+                .orElseGet(() -> {
+                    List<TicketZoneResponse> zones = ticketRepository.findByZoneAndPerformance(
+                            request.performanceId(), request.sessionNum(), request.zone());
+                    ticketZoneCacheStore.save(zoneKey, zones);
+                    return zones;
+                });
+        Long price = performanceSeatPriceCacheStore.find(request.performanceId(), request.zone())
+                .orElseGet(() -> {
+                    PerformanceSeatPrice seatPrice = performanceSeatPriceRepository.findByPerformance_PerformanceIdAndZone(request.performanceId(), request.zone());
+                    performanceSeatPriceCacheStore.save(request.performanceId(), request.zone(), seatPrice.getPrice());
+                    return seatPrice.getPrice();
+                });
+        return new TicketZonesResponse(request.zone(), price, response);
+    }
+
+    @Override
+    public List<Long> findExpiredHoldTicketIds() {
+        return ticketRepository.findByTicketStatusAndHoldExpiredAtBefore(TicketStatus.HOLD, LocalDateTime.now())
+                .stream()
+                .map(Ticket::getTicketId)
+                .toList();
     }
 
     private @NonNull Ticket getTicket(Long ticketId) {
