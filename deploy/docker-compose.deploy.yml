@@ -56,6 +56,7 @@ services:
       redis:
         condition: service_healthy
     environment:
+      TZ: Asia/Seoul
       SPRING_DATASOURCE_URL: jdbc:mysql://db:3306/reseat
       SPRING_DATASOURCE_USERNAME: root
       SPRING_DATASOURCE_PASSWORD: ${MYSQL_ROOT_PASSWORD}
@@ -84,6 +85,7 @@ services:
       db:
         condition: service_healthy
     environment:
+      TZ: Asia/Seoul
       # toss/performance-api 프로필이 없으면 @Profile("!toss")/@Profile("!performance-api")인
       # Mock 빈이 이겨서, 운영에서도 조용히 가짜 PG/가짜 공연 조회로 동작하게 된다.
       SPRING_PROFILES_ACTIVE: toss,performance-api
@@ -118,6 +120,7 @@ services:
       redis:
         condition: service_healthy
     environment:
+      TZ: Asia/Seoul
       SPRING_DATASOURCE_URL: jdbc:mysql://db:3306/reseat?useUnicode=true&characterEncoding=UTF-8&connectionCollation=utf8mb4_0900_ai_ci&serverTimezone=Asia/Seoul
       SPRING_DATA_REDIS_HOST: redis
       SPRING_DATA_REDIS_PORT: 6379
@@ -148,6 +151,7 @@ services:
       - order-service
       - performance-service
     environment:
+      TZ: Asia/Seoul
       USER_SERVICE_URL: http://user-service:8081
       ORDER_SERVICE_URL: http://order-service:8082
       PERFORMANCE_SERVICE_URL: http://performance-service:8083
