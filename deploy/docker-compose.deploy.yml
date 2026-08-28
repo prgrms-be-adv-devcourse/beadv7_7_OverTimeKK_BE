@@ -1,5 +1,6 @@
 # EC2 배포용 compose 파일. 로컬 개발용 compose.yaml과는 별개.
-# 실행: docker compose -f docker-compose.deploy.yml --env-file .env up -d
+# 실행 위치는 repo root(reseat-deploy) 기준: docker compose -f deploy/docker-compose.deploy.yml --env-file .env up -d
+# init-databases.sql / observability는 로컬 dev(compose.yaml, observability-compose.yaml)와 공유하므로 이 폴더로 옮기지 않고 ../로 참조함.
 
 services:
   db:
@@ -15,7 +16,7 @@ services:
       - --collation-server=utf8mb4_0900_ai_ci
       - --init-connect=SET NAMES utf8mb4
     volumes:
-      - ./init-databases.sql:/docker-entrypoint-initdb.d/init-databases.sql:ro
+      - ../init-databases.sql:/docker-entrypoint-initdb.d/init-databases.sql:ro
       - reseat-mysql-data:/var/lib/mysql
     healthcheck:
       test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p\"$$MYSQL_ROOT_PASSWORD\" --silent"]
@@ -211,7 +212,7 @@ services:
     container_name: promtail
     mem_limit: 64m
     volumes:
-      - ./observability/promtail/promtail-config.deploy.yml:/etc/promtail/config.yml:ro
+      - ../observability/promtail/promtail-config.deploy.yml:/etc/promtail/config.yml:ro
       - ./logs:/var/log/services:ro
     environment:
       MONITORING_PRIVATE_IP: ${MONITORING_PRIVATE_IP}
